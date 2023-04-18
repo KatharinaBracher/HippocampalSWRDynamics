@@ -19,7 +19,7 @@ MAX_LIKELIHOOD_SD_METERS_RUN_SNIPPETS = (
 
 
 class RatDay_Preprocessing_Parameters:
-    """Defines parameters for preprocessing data from Pfeiffer & Foster (2013,2015).
+    """Defines parameters for preprocessing data.
 
     Parameters that are properties of the experiment are defined as class variables,
     while parameters that chosen for analysis are defined as instance variables.
@@ -32,17 +32,17 @@ class RatDay_Preprocessing_Parameters:
     def __init__(
         self,
         bin_size_cm: int = 4,
-        position_recording_gap_threshold_s: float = 0.25,
-        velocity_run_threshold_cm_per_s: float = 5,
+        # position_recording_gap_threshold_s: float = 0.25,
+        velocity_run_threshold_cm_per_s: float = 15,
         place_field_gaussian_sd_cm: float = 4,
         place_field_prior_mean_firing_rate_spikes_per_s: float = 1.0,
         place_field_prior_beta_s: float = 0.01,
-        inhibitory_firing_rate_threshold_spikes_per_s: float = 10,
+        # inhibitory_firing_rate_threshold_spikes_per_s: float = 10,
         place_field_minimum_tuning_curve_peak_spikes_per_s: float = 2,
         rotate_placefields: bool = False,
     ):
         self.bin_size_cm = bin_size_cm
-        self.position_recording_gap_threshold_s = position_recording_gap_threshold_s
+        # self.position_recording_gap_threshold_s = position_recording_gap_threshold_s
         self.velocity_run_threshold_cm_per_s = velocity_run_threshold_cm_per_s
         self.place_field_gaussian_sd_cm = place_field_gaussian_sd_cm
         self.place_field_prior_mean_firing_rate_spikes_per_s = (
@@ -53,9 +53,7 @@ class RatDay_Preprocessing_Parameters:
             place_field_prior_beta_s * place_field_prior_mean_firing_rate_spikes_per_s
             + 1
         )
-        self.inhibitory_firing_rate_threshold_spikes_per_s = (
-            inhibitory_firing_rate_threshold_spikes_per_s
-        )
+        # self.inhibitory_firing_rate_threshold_spikes_per_s = (inhibitory_firing_rate_threshold_spikes_per_s)
         self.place_field_minimum_tuning_curve_peak_spikes_per_s = (
             place_field_minimum_tuning_curve_peak_spikes_per_s
         )

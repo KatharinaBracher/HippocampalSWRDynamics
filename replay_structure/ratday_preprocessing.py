@@ -7,17 +7,18 @@ import replay_structure.utils as utils
 
 class RatDay_Preprocessing:
     """
-    Preprocesses data as obtained from Pfeiffer & Foster (2013/15). The primary
+    Preprocesses data. The primary
     functionality is to:
     1. Reformat data from original MATLAB struct format.
-    2. Clean the position and spiking recordings of recording gaps.
-    2. Calculate velocity.
-    3. Calculate place fields.
+    2. Calculate ripple data
+    3. Clean the position and spiking recordings of recording gaps.
+    4. Calculate velocity.
+    5. Calculate 1D place fields.
     """
 
     def __init__(self, matlab_data, params: RatDay_Preprocessing_Parameters) -> None:
         """
-        Reformats and preprocesses the data from Pfeiffer & Foster (2015).
+        Reformats and preprocesses the data.
         """
         self.params = params
         print("Reformating data")
@@ -26,40 +27,53 @@ class RatDay_Preprocessing:
         self.data = self.clean_recording_data(self.raw_data)
         print("Calculating run periods")
         self.velocity_info = self.calculate_velocity_info()
-        print("Calculating place fields")
+        ("Calculating place fields")
         np.random.seed(0)
         self.place_field_data = self.calculate_place_fields()
         print("DONE")
 
-    @staticmethod
-    def reformat_data(matlab_data) -> dict:
+    # @staticmethod
+    def reformat_data(self, matlab_data) -> dict:
         """Reformat original data loaded from Matlab file.
         """
+        spike_flat_sorted, spike_ids_sorted = self.transform_spike_data(matlab_data)
         data = dict()
-        data["significant_ripples"] = matlab_data.SignificantRipples - 1
-        data["ripple_info"] = matlab_data.RippleTimes
-        data["inhibitory_neurons"] = (
-            np.array(matlab_data.InhibitoryNeurons) - 1
-        )  # account for matlab indexing
-        data["excitatory_neurons"] = (
-            matlab_data.ExcitatoryNeurons - 1
-        )  # account for matlab indexing
-        data["well_locations"] = matlab_data.WellLocations
-        data["well_sequence"] = matlab_data.WellSequence
-        data["spike_ids"] = matlab_data.SpikeData[:, 1].astype(int) - 1
-        data["spike_times_s"] = matlab_data.SpikeData[:, 0]
-        data["pos_times_s"] = matlab_data.PositionData[:, 0]
-        data["pos_xy_cm"] = np.squeeze(matlab_data.PositionData[:, 1:-1])
-        data["ripple_times_s"] = data["ripple_info"][:, :2]
+        data["significant_ripples"] = np.arange(0, matlab_data['RippleTimes'].shape[0],1)
+        data["ripple_info"] = matlab_data['RippleTimes'] # missing peak times
+        data["spike_ids"] = spike_ids_sorted
+        data["spike_times_s"] = spike_flat_sorted
+        data["pos_times_s"] = matlab_data['pos']['timestamp']
+        data["pos_xy_cm"] = matlab_data['pos']['data']
+        if matlab_data['pos']['units'] == 'meters':
+            data["pos_xy_cm"] = data["pos_xy_cm"]*100
+        data["ripple_times_s"] = matlab_data['RippleTimes']
         data["n_ripples"] = len(data["ripple_times_s"])
         data["n_cells"] = np.max(data["spike_ids"] + 1)
+        data["well_locations"] = np.array([[np.nanmin(data["pos_xy_cm"]),1], 
+                                          [np.nanmax(data["pos_xy_cm"]),2]])
+        
         return data
 
     # ----------------------------
+ 
+    def transform_spike_data(self, matlab_data):
+        """Reformat spike data loaded from Matlab file to 1D array.
+        """
+        spikes_flat = np.array([element 
+                                for sublist in matlab_data['SpikeTimes'] 
+                                for element in sublist])
+        spike_ids = [np.full_like(cell, i) 
+                     for i,cell in enumerate(matlab_data['SpikeTimes'])]
+        spike_ids_flat = np.array([element 
+                                   for sublist in spike_ids 
+                                   for element in sublist])
+        spike_flat_sorted = sorted(spikes_flat)
+        spike_ids_sorted = [int(x) for _, x in sorted(zip(spikes_flat, spike_ids_flat))]
+        return np.array(spike_flat_sorted), np.array(spike_ids_sorted)
+    # ----------------------------
 
     def clean_recording_data(self, raw_data: dict) -> dict:
-        """Checks for and cleans any gaps in position recording. Cleaning affects
-        "pos_xy", "pos_times", "spike_ids", "spike_times".
+        """Cleaning affects "pos_xy", "pos_times", "spike_ids", "spike_times".
         """
         (
             pos_xy_aligned,
@@ -72,52 +86,15 @@ class RatDay_Preprocessing:
             raw_data["spike_ids"],
             raw_data["spike_times_s"],
         )
-        (
-            pos_xy_gaps_aligned_and_cleaned,
-            large_position_gaps_inds,
-        ) = self.clean_recording_gaps(pos_xy_aligned, pos_times_aligned)
+        
         # store cleaned data in new dictionary
         cleaned_data = raw_data.copy()
-        cleaned_data["pos_xy_cm"] = pos_xy_gaps_aligned_and_cleaned
+        cleaned_data["pos_xy_cm"] = pos_xy_aligned
         cleaned_data["pos_times_s"] = pos_times_aligned
         cleaned_data["spike_ids"] = spike_ids_aligned
         cleaned_data["spike_times_s"] = spike_times_aligned
-        cleaned_data["large_position_gaps_inds"] = large_position_gaps_inds
+
         return cleaned_data
-
-    # -----
-
-    def clean_recording_gaps(self, pos_xy: np.ndarray, pos_times: np.ndarray):
-        """The position coordinates near a large gap in the position recording
-        interpolate between the positions at the start and end of the gap, giving
-        innaccurate position measurements. In order to account for this, we replace the
-        positions at +- a buffer around the time of a gap with np.nan, so they are not
-        taken into account for velocity or place field calculations.
-        """
-        (
-            position_gap_inds_above_threshold
-        ) = self.check_for_position_gaps_above_threshold(pos_times)
-        cleaned_pos_xy = pos_xy[:]
-        for ind in position_gap_inds_above_threshold:
-            cleaned_pos_xy[ind - 5 : ind + 5] = np.nan
-        return (cleaned_pos_xy, position_gap_inds_above_threshold)
-
-    def check_for_position_gaps_above_threshold(self, pos_times: np.ndarray):
-        pos_times_diff = np.diff(pos_times)
-        position_gap_bool = (
-            pos_times_diff > self.params.position_recording_gap_threshold_s
-        )
-
-        position_gap_inds_above_threshold = np.where(position_gap_bool)[0]
-        if len(position_gap_inds_above_threshold):
-            print(
-                f"{len(position_gap_inds_above_threshold)} position gaps found with"
-                f"{np.round(pos_times_diff[position_gap_inds_above_threshold], 2)} s "
-                "missing."
-            )
-        else:
-            print(f"No position gaps found.")
-        return position_gap_inds_above_threshold
 
     # ----------------
 
@@ -128,18 +105,30 @@ class RatDay_Preprocessing:
         spike_ids: np.ndarray,
         spike_times: np.ndarray,
     ) -> tuple:
+
         (spike_ids_aligned, spike_times_aligned) = self.remove_spikes_without_position(
             spike_ids, spike_times, pos_times
         )
         (pos_xy_aligned, pos_times_aligned) = self.remove_position_without_spikes(
             pos_xy, pos_times, spike_times
         )
+        (pos_xy_aligned_cleaned, pos_times_aligned_cleand) = self.remove_nan_position(
+            pos_xy_aligned, pos_times_aligned
+            )
+
         return (
-            pos_xy_aligned,
-            pos_times_aligned,
+            pos_xy_aligned_cleaned,
+            pos_times_aligned_cleand,
             spike_ids_aligned,
             spike_times_aligned,
         )
+    
+    def remove_nan_position(self, pos_xy: np.array, pos_times: np.array):
+        nan_index = np.squeeze(np.argwhere(np.isnan(pos_xy)))
+        pos_xy_cleaned = np.delete(pos_xy, nan_index)
+        pos_times_cleaned = np.delete(pos_times, nan_index)
+        return (pos_xy_cleaned, pos_times_cleaned)
+
 
     def remove_spikes_without_position(
         self, spike_ids: np.ndarray, spike_times: np.ndarray, pos_times: np.ndarray
@@ -196,7 +185,7 @@ class RatDay_Preprocessing:
             self.data["pos_times_s"]
         )
         velocity_info["vel_cm_per_s"] = self.calc_velocity(
-            self.data["pos_xy_cm"], self.data["large_position_gaps_inds"]
+            self.data["pos_xy_cm"]
         )
         (velocity_info["run_starts"], velocity_info["run_ends"]) = self.get_run_periods(
             velocity_info["vel_cm_per_s"], velocity_info["vel_times_s"]
@@ -210,11 +199,9 @@ class RatDay_Preprocessing:
         return (pos1 + pos2) / 2
 
     def calc_velocity(
-        self, pos_xy: np.ndarray, large_position_gaps_inds: list
-    ) -> np.ndarray:
-        x_pos_diff = np.diff(pos_xy[:, 0])
-        y_pos_diff = np.diff(pos_xy[:, 1])
-        distance = np.sqrt(x_pos_diff ** 2 + y_pos_diff ** 2)
+        self, pos_xy: np.ndarray) -> np.ndarray:
+        distance = np.diff(pos_xy)
+        # distance = np.sqrt(x_pos_diff ** 2 + y_pos_diff ** 2)
         velocity = distance / self.params.POSITION_RECORDING_RESOLUTION_FRAMES_PER_S
         return velocity
 
@@ -225,7 +212,7 @@ class RatDay_Preprocessing:
         if np.any(np.isnan(velocity)):
             velocity_times = velocity_times[~np.isnan(velocity)]
             velocity = velocity[~np.isnan(velocity)]
-        run_boolean = velocity > self.params.velocity_run_threshold_cm_per_s
+        run_boolean = abs(velocity) > self.params.velocity_run_threshold_cm_per_s
         run_starts, run_ends = utils.boolean_to_times(run_boolean, velocity_times)
         return (run_starts, run_ends)
 
@@ -242,10 +229,14 @@ class RatDay_Preprocessing:
             self.data["pos_times_s"],
             self.velocity_info,
         )
+
+               
         place_field_data["spatial_grid"] = self.get_spatial_grid()
+        
         place_field_data["position_histogram"] = self.calc_position_histogram(
             place_field_data["run_data"]["pos_xy_cm"], place_field_data["spatial_grid"]
         )
+         
         place_field_data["spike_histograms"] = self.calc_spike_histograms(
             place_field_data["run_data"]["spike_times_s"],
             place_field_data["run_data"]["spike_ids"],
@@ -253,23 +244,27 @@ class RatDay_Preprocessing:
             self.data["pos_times_s"],
             place_field_data["spatial_grid"],
         )
+        
         place_field_data["place_fields"] = self.calc_place_fields(
             place_field_data["position_histogram"],
             place_field_data["spike_histograms"],
             posterior=True,
         )
+        
         place_field_data["place_fields_likelihood"] = self.calc_place_fields(
             place_field_data["position_histogram"],
             place_field_data["spike_histograms"],
             posterior=False,
         )
+        
         place_field_data["mean_firing_rate_array"] = self.calc_run_mean_firing_rate(
             place_field_data["position_histogram"], place_field_data["spike_histograms"]
         )
+        
         place_field_data["max_firing_rate_array"] = self.calc_max_tuning_curve_array(
             place_field_data["place_fields"]
         )
-        (
+        '''(
             place_field_data["excitatory_neurons"],
             place_field_data["inhibitory_neurons"],
         ) = self.check_excitatory_inhibitory_classification(
@@ -280,8 +275,7 @@ class RatDay_Preprocessing:
             place_field_data["n_place_cells"],
         ) = self.classify_place_cells(
             self.data["excitatory_neurons"], place_field_data["max_firing_rate_array"]
-        )
-
+        )'''
         return place_field_data
 
     @staticmethod
@@ -296,7 +290,6 @@ class RatDay_Preprocessing:
         run_data["spike_times_s"] = np.array([])
         run_data["spike_ids"] = np.array([])
         run_x_pos = np.array([])
-        run_y_pos = np.array([])
         for epoch in range(len(velocity_info["run_starts"])):
             start = velocity_info["run_starts"][epoch]
             end = velocity_info["run_ends"][epoch]
@@ -306,8 +299,7 @@ class RatDay_Preprocessing:
             # extract spikes and positions in this window
             window_spike_times = spike_times[spike_window_bool]
             window_spike_ids = spike_ids[spike_window_bool]
-            window_x_pos = pos_xy[:, 0][pos_window_bool]
-            window_y_pos = pos_xy[:, 1][pos_window_bool]
+            window_x_pos = pos_xy[pos_window_bool]
             # append to list
             run_data["spike_times_s"] = np.append(
                 run_data["spike_times_s"], window_spike_times
@@ -316,23 +308,21 @@ class RatDay_Preprocessing:
                 run_data["spike_ids"], window_spike_ids
             ).astype(int)
             run_x_pos = np.append(run_x_pos, window_x_pos)
-            run_y_pos = np.append(run_y_pos, window_y_pos)
-        run_data["pos_xy_cm"] = np.array((run_x_pos, run_y_pos)).T
+        run_data["pos_xy_cm"] = np.array(run_x_pos).T
         return run_data
 
     def get_spatial_grid(self):
         spatial_grid = dict()
-        spatial_grid["x"] = np.linspace(0, 200, self.params.n_bins_x + 1)
-        spatial_grid["y"] = np.linspace(0, 200, self.params.n_bins_y + 1)
+        spatial_grid["x"] = np.linspace(0, self.data['well_locations'][1,0], self.params.n_bins_x + 1)
+        # spatial_grid["y"] = np.linspace(0, 1, self.params.n_bins_y + 1)
         return spatial_grid
 
     def calc_position_histogram(
         self, run_pos_xy: np.ndarray, spatial_grid: dict
     ) -> np.ndarray:
-        position_hist, _, _ = np.histogram2d(
-            run_pos_xy[:, 0],
-            run_pos_xy[:, 1],
-            bins=(spatial_grid["x"], spatial_grid["y"]),
+        position_hist, _ = np.histogram(
+            run_pos_xy,
+            bins=spatial_grid["x"]
         )
         position_hist = (
             position_hist.T * self.params.POSITION_RECORDING_RESOLUTION_FRAMES_PER_S
@@ -348,7 +338,7 @@ class RatDay_Preprocessing:
         spatial_grid: dict,
     ) -> np.ndarray:
         spike_histograms = np.zeros(
-            (self.data["n_cells"], self.params.n_bins_x, self.params.n_bins_y)
+            (self.data["n_cells"], self.params.n_bins_x)
         )
         for cell_id in range(self.data["n_cells"]):
             cell_spike_times = spike_times[spike_ids == cell_id]
@@ -356,16 +346,14 @@ class RatDay_Preprocessing:
                 cell_spike_times, pos_xy, pos_times
             )
             if (len(cell_spike_times)) > 0:
-                spike_hist, _, _ = np.histogram2d(
-                    cell_spike_pos_xy[:, 0],
-                    cell_spike_pos_xy[:, 1],
-                    bins=(spatial_grid["x"], spatial_grid["y"]),
+                spike_hist, _ = np.histogram(
+                    cell_spike_pos_xy,
+                    bins=spatial_grid["x"]
                 )
                 spike_histograms[cell_id] = spike_hist.T
             else:
-                spike_histograms[cell_id] = np.zeros(
-                    (self.params.n_bins_x, self.params.n_bins_y)
-                )
+                spike_histograms[cell_id] = np.zeros(self.params.n_bins_x
+                                                    )
         return spike_histograms
 
     def calc_place_fields(
@@ -375,7 +363,7 @@ class RatDay_Preprocessing:
         posterior: bool = True,
     ) -> np.ndarray:
         place_fields = np.zeros(
-            (self.data["n_cells"], self.params.n_bins_x, self.params.n_bins_y)
+            (self.data["n_cells"], self.params.n_bins_x)
         )
         for i in range(self.data["n_cells"]):
             place_fields[i] = self.calc_one_place_field(
@@ -425,26 +413,19 @@ class RatDay_Preprocessing:
     ) -> np.ndarray:
         abs_diff = np.abs(pos_times - spike_time)
         min_diff = np.min(abs_diff)
-        if min_diff > self.params.position_recording_gap_threshold_s:
-            print(
-                "find_pos_ind_nearest_spike() returning value larger than gap "
-                f"threshold: {min_diff, np.where(abs_diff == min_diff)}"
-            )
         nearest_pos_xy = pos_xy[abs_diff == min_diff][0]
-        if nearest_pos_xy.shape != (2,):
-            nearest_pos_xy = nearest_pos_xy[0]
         return nearest_pos_xy
 
     def calc_run_mean_firing_rate(
         self, position_histogram: np.ndarray, spiking_histograms: np.ndarray
     ) -> np.ndarray:
         total_run_time = np.sum(position_histogram)
-        total_spikes = np.sum(spiking_histograms, axis=(1, 2))
+        total_spikes = np.sum(spiking_histograms)
         mean_fr_array = total_spikes / total_run_time
         return mean_fr_array
 
     def calc_max_tuning_curve_array(self, place_fields: np.ndarray) -> np.ndarray:
-        max_fr_array = np.max(place_fields, axis=(1, 2))
+        max_fr_array = np.max(place_fields)
         return max_fr_array
 
     def check_excitatory_inhibitory_classification(

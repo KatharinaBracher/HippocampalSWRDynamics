@@ -13,14 +13,14 @@ from typing import Union, NamedTuple, Optional, List, Tuple
 # DEFINE PATHS FOR LOADING/SAVING DATA
 
 
-DATA_PATH = "/Users/emmakrause/Documents/PhD/Lab/replay_structure/data"
-RESULTS_PATH = "/Users/emmakrause/Documents/PhD/Lab/replay_structure/results"
-FIGURES_PATH = "/Users/emmakrause/Documents/PhD/Lab/replay_structure/figures"
+DATA_PATH = "/home/katharina/Documents/Studium/MIT/project/data"
+RESULTS_PATH = "/home/katharina/Documents/Studium/MIT/project/1D/results"
+FIGURES_PATH = "/home/katharina/Documents/Studium/MIT/project/1D/figures"
 PLOTTING_FOLDER = (
-    "/Users/emmakrause/Documents/PhD/Lab/replay_structure/results/plotting_temp"
+    "/home/katharina/Documents/Studium/MIT/project/1D/figures"
 )
-DATA_PATH_O2 = "/home/ek195/replay_structure/data"
-RESULTS_PATH_O2 = "/home/ek195/replay_structure/results"
+DATA_PATH_O2 = "/home/katharina/Documents/Studium/MIT/project/data"
+RESULTS_PATH_O2 = "/home/katharina/Documents/Studium/MIT/project/1D/results"
 
 # --------------------------------------------------------------------------------------
 # DEFINE MODEL TYPES
