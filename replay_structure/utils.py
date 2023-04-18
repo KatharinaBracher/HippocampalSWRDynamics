@@ -133,13 +133,7 @@ def cm_to_bins(array_in_cm, bin_size_cm: int = 4):
 
 def get_pf_matrix(place_fields: np.ndarray, place_cell_ids: np.ndarray) -> np.ndarray:
     place_cell_tuning_curves = place_fields[place_cell_ids]
-    place_cell_tuning_curves_flattened = place_cell_tuning_curves.reshape(
-        (
-            len(place_cell_ids),
-            place_cell_tuning_curves.shape[1] * place_cell_tuning_curves.shape[2],
-        )
-    )
-    return place_cell_tuning_curves_flattened
+    return place_cell_tuning_curves
 
 
 def get_spikemat(

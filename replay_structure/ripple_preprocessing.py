@@ -66,6 +66,7 @@ class Ripple_Preprocessing:
             ripple_info["popburst_mean_firing_rate_array"],
             ripple_info["popburst_mean_firing_rate_matrix"],
         ) = self.calc_popburst_firing_rate_array(ripple_info["spikemats_popburst"])
+        
         ripple_info["firing_rate_scaling"] = self.calc_firing_rate_scaling(
             ratday.place_field_data["mean_firing_rate_array"][
                 ratday.place_field_data["place_cell_ids"]
