@@ -264,6 +264,7 @@ class RatDay_Preprocessing:
         place_field_data["max_firing_rate_array"] = self.calc_max_tuning_curve_array(
             place_field_data["place_fields"]
         )
+
         '''(
             place_field_data["excitatory_neurons"],
             place_field_data["inhibitory_neurons"],
@@ -276,6 +277,12 @@ class RatDay_Preprocessing:
         ) = self.classify_place_cells(
             self.data["excitatory_neurons"], place_field_data["max_firing_rate_array"]
         )'''
+
+        (
+        place_field_data["place_cell_ids"],
+        place_field_data["n_place_cells"],
+        ) = (np.arange(0, self.data['n_cells'] ,1),
+            self.data['n_cells'])
         return place_field_data
 
     @staticmethod
@@ -420,12 +427,12 @@ class RatDay_Preprocessing:
         self, position_histogram: np.ndarray, spiking_histograms: np.ndarray
     ) -> np.ndarray:
         total_run_time = np.sum(position_histogram)
-        total_spikes = np.sum(spiking_histograms)
+        total_spikes = np.sum(spiking_histograms, axis=1)
         mean_fr_array = total_spikes / total_run_time
         return mean_fr_array
 
     def calc_max_tuning_curve_array(self, place_fields: np.ndarray) -> np.ndarray:
-        max_fr_array = np.max(place_fields)
+        max_fr_array = np.max(place_fields, axis=1)
         return max_fr_array
 
     def check_excitatory_inhibitory_classification(
