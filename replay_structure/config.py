@@ -25,13 +25,13 @@ class RatDay_Preprocessing_Parameters:
     while parameters that chosen for analysis are defined as instance variables.
     """
 
-    ENVIRONMENT_WIDTH_CM: float = 200
-    ENVIRONMENT_LENGTH_CM: float = 200
+    ENVIRONMENT_WIDTH_CM: float = 359
+    ENVIRONMENT_LENGTH_CM: float = 1
     POSITION_RECORDING_RESOLUTION_FRAMES_PER_S: float = 1 / 30
 
     def __init__(
         self,
-        bin_size_cm: int = 4,
+        bin_size_cm: int = 5,
         # position_recording_gap_threshold_s: float = 0.25,
         velocity_run_threshold_cm_per_s: float = 15,
         place_field_gaussian_sd_cm: float = 4,

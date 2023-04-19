@@ -168,10 +168,7 @@ def get_trajectories(ratday, run_times):
         pos_start_ind = np.argwhere(ratday.data["pos_times_s"] > run_times[i][0])[0][0]
         pos_end_ind = np.argwhere(ratday.data["pos_times_s"] < run_times[i][1])[-1][0]
         trajectories[i] = np.array(
-            [
-                ratday.data["pos_xy_cm"][pos_start_ind:pos_end_ind, 0],
-                ratday.data["pos_xy_cm"][pos_start_ind:pos_end_ind, 1],
-            ]
+                ratday.data["pos_xy_cm"][pos_start_ind:pos_end_ind],
         ).T
     return trajectories
 

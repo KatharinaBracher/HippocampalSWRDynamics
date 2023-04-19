@@ -7,8 +7,7 @@ import replay_structure.utils as utils
 
 class RatDay_Preprocessing:
     """
-    Preprocesses data. The primary
-    functionality is to:
+    Preprocesses data. The primary functionality is to:
     1. Reformat data from original MATLAB struct format.
     2. Calculate ripple data
     3. Clean the position and spiking recordings of recording gaps.
