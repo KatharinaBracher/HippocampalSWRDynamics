@@ -263,20 +263,7 @@ class RatDay_Preprocessing:
         place_field_data["max_firing_rate_array"] = self.calc_max_tuning_curve_array(
             place_field_data["place_fields"]
         )
-
-        '''(
-            place_field_data["excitatory_neurons"],
-            place_field_data["inhibitory_neurons"],
-        ) = self.check_excitatory_inhibitory_classification(
-            place_field_data["mean_firing_rate_array"]
-        )
-        (
-            place_field_data["place_cell_ids"],
-            place_field_data["n_place_cells"],
-        ) = self.classify_place_cells(
-            self.data["excitatory_neurons"], place_field_data["max_firing_rate_array"]
-        )'''
-
+        # all cells are exc. place cells
         (
         place_field_data["place_cell_ids"],
         place_field_data["n_place_cells"],
@@ -314,7 +301,7 @@ class RatDay_Preprocessing:
                 run_data["spike_ids"], window_spike_ids
             ).astype(int)
             run_x_pos = np.append(run_x_pos, window_x_pos)
-        run_data["pos_xy_cm"] = np.array(run_x_pos).T
+        run_data["pos_xy_cm"] = np.array(run_x_pos)
         return run_data
 
     def get_spatial_grid(self):
@@ -331,7 +318,7 @@ class RatDay_Preprocessing:
             bins=spatial_grid["x"]
         )
         position_hist = (
-            position_hist.T * self.params.POSITION_RECORDING_RESOLUTION_FRAMES_PER_S
+            position_hist * self.params.POSITION_RECORDING_RESOLUTION_FRAMES_PER_S
         )
         return position_hist
 
@@ -356,7 +343,7 @@ class RatDay_Preprocessing:
                     cell_spike_pos_xy,
                     bins=spatial_grid["x"]
                 )
-                spike_histograms[cell_id] = spike_hist.T
+                spike_histograms[cell_id] = spike_hist
             else:
                 spike_histograms[cell_id] = np.zeros(self.params.n_bins_x
                                                     )
@@ -433,53 +420,3 @@ class RatDay_Preprocessing:
     def calc_max_tuning_curve_array(self, place_fields: np.ndarray) -> np.ndarray:
         max_fr_array = np.max(place_fields, axis=1)
         return max_fr_array
-
-    def check_excitatory_inhibitory_classification(
-        self, mean_fr_array: np.ndarray
-    ) -> tuple:
-        excitatory_neurons = np.squeeze(
-            np.argwhere(
-                mean_fr_array
-                < self.params.inhibitory_firing_rate_threshold_spikes_per_s
-            )
-        )
-        inhibitory_neurons = np.squeeze(
-            np.argwhere(
-                mean_fr_array
-                > self.params.inhibitory_firing_rate_threshold_spikes_per_s
-            )
-        )
-        different_inhibitory_classification = np.any(
-            inhibitory_neurons != self.data["inhibitory_neurons"]
-        )
-        different_excitatory_classification = np.any(
-            excitatory_neurons != self.data["excitatory_neurons"]
-        )
-        if different_excitatory_classification > 0:
-            print(
-                f"Place field check: WARNING, "
-                "excitatory neurons classified differently from original paper."
-            )
-        elif different_inhibitory_classification > 0:
-            print(
-                f"Place field check: WARNING, "
-                "inhibitory neurons classified differently from original paper."
-            )
-        else:
-            print(
-                "Place field check: SUCCESSFUL, same classification of "
-                "excitatory and inhibitory neurons as original paper."
-            )
-        return (excitatory_neurons, inhibitory_neurons)
-
-    def classify_place_cells(
-        self, excitatory_ids: np.ndarray, max_tuning_curve_array: np.ndarray
-    ) -> tuple:
-        max_tuning_curve_above_thresh = np.squeeze(
-            np.argwhere(
-                max_tuning_curve_array
-                > self.params.place_field_minimum_tuning_curve_peak_spikes_per_s
-            )
-        )
-        place_cell_ids = np.intersect1d(excitatory_ids, max_tuning_curve_above_thresh)
-        return (place_cell_ids, len(place_cell_ids))
