@@ -185,7 +185,7 @@ class Structure_Analysis_Input_Parameters:
         time_window_ms: int,
         bin_size_cm: int = 4,
         n_bins_x: int = 50,
-        n_bins_y: int = 50,
+        n_bins_y: int = 1,
         time_window_advance_ms: Optional[int] = None,
     ):
         self.bin_size_cm = bin_size_cm
