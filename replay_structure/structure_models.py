@@ -308,7 +308,7 @@ class Stationary(Structure_Model):
     def _calc_model_evidence(self, spikemat_ind: int):
         emission_probability_log = self._calc_emission_probability_log(spikemat_ind)
         joint_probability = emission_probability_log - np.log(
-            self.structure_data.params.n_grid
+            self.structure_data.params.n_bins_x
         )
         model_evidence = logsumexp(joint_probability)
         marginals = np.exp(emission_probability_log - emission_probability_log.max())
@@ -330,7 +330,7 @@ class Stationary_Gaussian(Structure_Model):
             emission_probabilities.T, self.latent_probabilities_normalized
         )
         sum_t = np.sum(np.log(sum_z), axis=0)
-        model_evidence = logsumexp(-np.log(self.structure_data.params.n_grid) + sum_t)
+        model_evidence = logsumexp(-np.log(self.structure_data.params.n_bins_x) + sum_t)
         marginals = np.matmul(
             emission_probabilities.T, self.latent_probabilities_normalized.T
         ).T
@@ -368,7 +368,7 @@ class Random(Structure_Model):
     def _calc_model_evidence(self, spikemat_ind: int):
         emission_probabilities_log = self._calc_emission_probabilities_log(spikemat_ind)
         full_sum = emission_probabilities_log - np.log(
-            self.structure_data.params.n_grid
+            self.structure_data.params.n_bins_x  # changed from n_bins_x * n_bins_y
         )
         sum_z = logsumexp(full_sum, axis=0)
         model_evidence = np.sum(sum_z)

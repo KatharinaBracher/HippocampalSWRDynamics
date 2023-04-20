@@ -16,6 +16,7 @@ class Run_Snippet_Preprocessing:
         ratday: RatDay_Preprocessing,
         ripple_data: Ripple_Preprocessing,
         params: Run_Snippet_Preprocessing_Parameters,
+        full_run = None
     ):
         self.params = params
         self.pf_matrix = utils.get_pf_matrix(
@@ -23,7 +24,10 @@ class Run_Snippet_Preprocessing:
             ratday.place_field_data["place_cell_ids"],
         )
         print("Getting spikemats")
-        self.run_info = self.get_run_snippet_info(ratday, ripple_data)
+        if full_run is not None:
+            self.run_info = self.get_full_run_info(ratday, full_run)
+        else:
+            self.run_info = self.get_run_snippet_info(ratday, ripple_data)
 
     def get_run_snippet_info(
         self, ratday: RatDay_Preprocessing, ripple_data: Ripple_Preprocessing
@@ -38,6 +42,19 @@ class Run_Snippet_Preprocessing:
             ratday, run_snippet_info["run_times_s"]
         )
 
+        return run_snippet_info
+    
+    def get_full_run_info(
+        self, ratday: RatDay_Preprocessing, full_run
+    ) -> dict:
+        run_snippet_info = dict()
+        run_snippet_info["run_times_s"] = full_run
+        run_snippet_info["true_trajectories_cm"] = utils.get_trajectories(
+            ratday, run_snippet_info["run_times_s"]
+        )
+        run_snippet_info["spikemats"] = self.get_spikemats(
+            ratday, run_snippet_info["run_times_s"]
+        )
         return run_snippet_info
 
     def select_run_snippets(
@@ -66,7 +83,7 @@ class Run_Snippet_Preprocessing:
         )
         run_snippet_durations_s = (
             ripple_spikemat_durations_s * self.params.duration_scaling_factor
-        )
+        ) # PF_SCALING_FACTOR = 2.9, VELOCITY_SCALING_FACTOR = 6.75
         return run_snippet_durations_s
 
     def get_run_snippet_times(
