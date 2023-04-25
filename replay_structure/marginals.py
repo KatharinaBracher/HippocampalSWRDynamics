@@ -13,7 +13,7 @@ class All_Models_Marginals:
         self,
         structure_data: Structure_Analysis_Input,
         spikemat_ind: int,
-        stationary_gaussian_params: dict = {"sd_meters": 0.01},
+        stationary_gaussian_params: dict = {"sd_meters": 0.08},
         diffusion_params: dict = {"sd_meters": 0.8},
         momentum_params: dict = {"sd_0_meters": 0.03, "sd_meters": 100, "decay": 100},
         plotting_folder=PLOTTING_FOLDER,

@@ -341,22 +341,17 @@ class Stationary_Gaussian(Structure_Model):
         latent_mat = np.zeros(
             (
                 self.structure_data.params.n_bins_x,
-                self.structure_data.params.n_bins_y,
                 self.structure_data.params.n_bins_x,
-                self.structure_data.params.n_bins_y,
             )
         )
         x = np.arange(self.structure_data.params.n_bins_x)
-        y = np.arange(self.structure_data.params.n_bins_y)
-        xx, yy = np.meshgrid(x, y)
         for m in range(self.structure_data.params.n_bins_x):
-            for n in range(self.structure_data.params.n_bins_y):
-                this_prob = sp.multivariate_normal(
-                    [n, m], [[self.sd_bins ** 2, 0], [0, self.sd_bins ** 2]]
-                ).pdf(np.transpose([xx, yy]))
-                latent_mat[:, :, n, m] = this_prob / this_prob.sum()
+            this_prob = sp.multivariate_normal(
+                m, self.sd_bins ** 2
+            ).pdf(np.transpose(x))
+            latent_mat[:, m] = this_prob / this_prob.sum()
         latent_mat = latent_mat.reshape(
-            (self.structure_data.params.n_grid, self.structure_data.params.n_grid)
+            (self.structure_data.params.n_bins_x, self.structure_data.params.n_bins_x)
         )
         return latent_mat
 

@@ -267,12 +267,12 @@ def times_to_bool(data_times, start_time, end_time):
 def get_marginal_sum(marginals, n_bins=50):
     if len(marginals.shape) > 1:
         marginal_norm = marginals / np.sum(marginals, axis=0)
-        marginal_2d = np.reshape(marginal_norm, (n_bins, n_bins, marginals.shape[1]))
-        marginal_plot = np.log(np.nansum(marginal_2d, axis=2))
+        # marginal_ = np.reshape(marginal_norm, (marginals.shape[0], marginals.shape[1]))
+        marginal_plot = np.log(marginal_norm)
     else:
-        marginal_2d = marginals.reshape(n_bins, n_bins)
+        marginal_2d = marginals.reshape(n_bins)
         marginal_plot = np.nan_to_num(np.log(marginal_2d))
-    return np.nan_to_num(marginal_plot.T)
+    return np.nan_to_num(marginal_plot)
 
 
 def get_p_models(log_likelihoods):
