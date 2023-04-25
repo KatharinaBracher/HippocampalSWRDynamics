@@ -1,7 +1,7 @@
 # Replay Spatio-Temporal Dynamics Analysis
 
-This repo contains the code for Krause and Drugowitsch (2022). "A large majority of 
-awake hippocampal sharp-wave ripples feature spatial trajectories with momentum". Neuron. 
+This repo contains modified code of Krause and Drugowitsch (2022). "A large majority of 
+awake hippocampal sharp-wave ripples feature spatial trajectories with momentum". Neuron.
 
 This repo uses [Poetry](https://python-poetry.org/docs/) to manage Python dependences.
 
@@ -15,8 +15,9 @@ This repo uses [Poetry](https://python-poetry.org/docs/) to manage Python depend
 
 ## High-level overview of analysis pipeline
 
-This code was written for analyzing the dataset from Pfieffer and Foster (2013, 2015).
+Initially this code was written for analyzing the dataset from Pfieffer and Foster (2013, 2015).
 Please contact Pfeiffer and Foster for the dataset.
+It is rewritten for one-dimensional data.
 
 The code is split into modules that house the analysis code (stored in 
 `/replay-structure`), and command line interfaces for running
