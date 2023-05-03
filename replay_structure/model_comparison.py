@@ -228,6 +228,7 @@ class Gridsearch_Marginalization:
                     fit_prior_evaluated_at_gridsearch_params["sd_meters"]
                     / fit_prior_evaluated_at_gridsearch_params["sd_meters"].sum()
                 )
+                print(self.gridsearch_results.shape, sd_prior_normalized.shape)
                 marginalized_model_evidences = logsumexp(
                     self.gridsearch_results + np.log(sd_prior_normalized), axis=1
                 )

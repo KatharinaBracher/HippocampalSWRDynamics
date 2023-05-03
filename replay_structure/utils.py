@@ -48,7 +48,8 @@ def calc_poisson_emission_probability_log(
 ) -> np.ndarray:
     (n_timesteps, n_cells) = np.shape(spikemat)
     (n_cells, n_grid) = np.shape(place_fields)
-    x = np.sum(spikemat, axis=0)
+    x = np.sum(spikemat, axis=0)  # sum or average
+    # x = np.average(spikemat, axis=0)
     log_pfs = np.log(place_fields).T
     pf_spikes_sum = np.sum(log_pfs * x, axis=1)
     time_window_sum = np.sum(spikemat) * np.log(time_window_s)

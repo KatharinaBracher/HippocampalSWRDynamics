@@ -150,7 +150,7 @@ class Diffusion(Structure_Model):
         self.forward_backward_input[
             "emission_probabilities"
         ] = self._calc_emission_probabilities(spikemat_ind)
-        forward_backward_output = fb.Forward_Backward_xy(
+        forward_backward_output = fb.Forward_Backward(
             self.forward_backward_input
         ).run_forward_backward_algorithm("no joints")
         model_ev = forward_backward_output["data_likelihood"]
@@ -159,10 +159,8 @@ class Diffusion(Structure_Model):
 
     def _initialize_forward_backward_input(self) -> dict:
         forward_backward_input = dict()
-        n_grid = (
-            self.structure_data.params.n_bins_x * self.structure_data.params.n_bins_y
-        )
-        forward_backward_input["initial_state_prior"] = np.ones(n_grid) / n_grid
+        forward_backward_input["initial_state_prior"] = np.ones(
+            self.structure_data.params.n_bins_x) / self.structure_data.params.n_bins_x
         forward_backward_input["transition_matrix"] = self._calc_transition_matrix(
             self.sd_bins
         )
@@ -171,9 +169,9 @@ class Diffusion(Structure_Model):
     def _calc_transition_matrix(self, sd_bins: float) -> np.ndarray:
         """NxN matrix"""
         transition_mat = np.zeros(
-            (self.structure_data.params.n_bins_x, self.structure_data.params.n_bins_y)
+            (self.structure_data.params.n_bins_x, self.structure_data.params.n_bins_x)
         )
-        j = np.arange(self.structure_data.params.n_bins_y)  # t
+        j = np.arange(self.structure_data.params.n_bins_x)  # t
         for i in range(self.structure_data.params.n_bins_x):  # t-1
             this_transition = np.exp(
                 -((j - i) ** 2)
@@ -191,8 +189,7 @@ class Momentum(Structure_Model):
         sd_meters: float,
         decay: float,
         emission_probabilities: Optional[np.ndarray] = None,
-        plotting: bool = False,
-        plotting_folder: Optional[str] = None,
+        plotting: bool = False
     ):
         super().__init__(structure_data)
         self.sd_0_meters = sd_0_meters
@@ -207,8 +204,7 @@ class Momentum(Structure_Model):
         self.emission_probabilities = emission_probabilities
         self.forward_backward_input = self._initialize_forward_backward_input()
         self.plotting = plotting
-        self.plotting_folder = plotting_folder
-
+        
     def _calc_model_evidence(self, spikemat_ind: int):
         self.forward_backward_input[
             "emission_probabilities"
@@ -216,7 +212,7 @@ class Momentum(Structure_Model):
         forward_backward_output = fb.Forward_Backward_order2(
             self.forward_backward_input
         ).run_forward_backward_algorithm(
-            plotting=self.plotting, plotting_folder=self.plotting_folder
+            plotting=self.plotting
         )
         model_ev = forward_backward_output["data_likelihood"]  # .numpy()
         if self.plotting:
@@ -228,8 +224,8 @@ class Momentum(Structure_Model):
     def _initialize_forward_backward_input(self) -> dict:
         forward_backward_input = dict()
         forward_backward_input["initial_state_prior"] = torch.from_numpy(
-            np.ones(self.structure_data.params.n_grid)
-            / self.structure_data.params.n_grid
+            np.ones(self.structure_data.params.n_bins_x)
+            / self.structure_data.params.n_bins_x
         )
         forward_backward_input["initial_transition"] = torch.from_numpy(
             self._calc_order1_transition_matrix(self.sd_0_bins)
@@ -240,7 +236,7 @@ class Momentum(Structure_Model):
         return forward_backward_input
 
     def _calc_order1_transition_matrix(self, sd: float):
-        """(NxN)x(NxN) matrix"""
+        """(NxN)x(NxN) matrix
         initial_transition = np.zeros(
             (self.structure_data.params.n_grid, self.structure_data.params.n_grid)
         )
@@ -256,7 +252,19 @@ class Momentum(Structure_Model):
                 flat_transition = this_transition.reshape(-1)
                 initial_transition[
                     :, i * self.structure_data.params.n_bins_x + j
-                ] = flat_transition / np.sum(flat_transition)
+                ] = flat_transition / np.sum(flat_transition)"""
+        
+        """(NxN) matrix"""
+        initial_transition = np.zeros(
+            (self.structure_data.params.n_bins_x, self.structure_data.params.n_bins_x)
+        )
+        j = np.arange(self.structure_data.params.n_bins_x)  
+        for i in range(self.structure_data.params.n_bins_x):  # t-1 x
+            this_transition = np.exp(
+            -((j - i) ** 2)
+            / (2 * sd ** 2 * self.structure_data.params.time_window_s)
+            )
+            initial_transition[:, i] = this_transition / np.sum(this_transition)
         return initial_transition
 
     def _calc_order2_transition_matrix(self, sd: float, decay: float):

@@ -58,7 +58,7 @@ class Forward_Backward:
         HMM_outputs["betas"] = betas
         HMM_outputs["conditionals"] = conditionals
         # use results to calcualte the data likelihood, marginals and joints.
-        HMM_outputs["data_likelihood"] = self.calculate_data_likelihood(conditionals)
+        HMM_outputs["data_likelihood"] = self.calculate_data_likelihood(conditionals)  # p()
         HMM_outputs["latent_marginals"] = self.calculate_latent_marginals(
             alphas, betas, conditionals
         )
@@ -83,8 +83,8 @@ class Forward_Backward:
             alphas_init = self.params["emission_probabilities"][:, n] * np.matmul(
                 alphas[n - 1], self.params["transition_matrix"].T
             )
-            alphas[n] = alphas_init / np.sum(alphas_init)
-            conditionals[n] = np.sum(alphas_init)
+            alphas[n] = alphas_init / np.sum(alphas_init)  # normalize p(z_t, x_t)
+            conditionals[n] = np.sum(alphas_init)  # sum over z -> p(x_1:t)
         return alphas, conditionals
 
     def backward_pass(self, conditionals):
@@ -193,16 +193,15 @@ class Forward_Backward_order2:
         (self.n_states, self.n_timesteps) = np.shape(
             self.params["emission_probabilities"]
         )
-        self.n_states_sqrt = np.sqrt(self.n_states).astype(int)
         # self.params_to_torch()
 
-    def run_forward_backward_algorithm(self, plotting=False, plotting_folder=None):
+    def run_forward_backward_algorithm(self, plotting=False):
         """FB Algorithm Outputs Dictionary:
         'data_likelihood': scalar
         'latent_marginals': (T x K)"""
         HMM_outputs = dict()
-        conditionals, alphas = self.forward_pass(
-            plotting=plotting, plotting_folder=plotting_folder
+        conditionals, alphas, alphas_marginals = self.forward_pass(
+            plotting=plotting
         )
         HMM_outputs["alphas"] = alphas
         HMM_outputs["conditionals"] = conditionals
@@ -210,19 +209,20 @@ class Forward_Backward_order2:
         # the backward pass is computationally intensive, so only want to run this
         # for visualization (not when running over parameter gridsearch).
         if plotting:
-            self.backward_pass(plotting=plotting, plotting_folder=plotting_folder)
+            betas = self.backward_pass(conditionals)
             HMM_outputs["latent_marginals"] = self.calculate_latent_marginals(
-                plotting=plotting, plotting_folder=plotting_folder
+                conditionals, alphas_marginals, betas
             )
         return HMM_outputs
 
-    def forward_pass(self, plotting=False, plotting_folder=None):
+    def forward_pass(self, plotting=False):
         # calculate alpha_0:T recursively forward i
-        save = True
+
         # initialize alphas and conditionals
         alphas = torch.zeros((self.n_timesteps, self.n_states))
-        # conditionals = torch.zeros(self.n_timesteps)
         conditionals = np.zeros(self.n_timesteps, dtype=np.longdouble)
+        # initialize list of alphas to calculate marginals
+        alphas_marginals = []
 
         # calculate alpha_0
         alpha_0 = (
@@ -233,10 +233,7 @@ class Forward_Backward_order2:
         # print(conditionals)
         alpha_0 = alpha_0 / conditionals[0]
         alphas[0] = alpha_0
-
-        if plotting and save:
-            alpha_t_filename = os.path.join(plotting_folder, f"alpha_{0}")
-            save_data(alpha_0, alpha_t_filename, print_filename=False)
+        alphas_marginals.append(alpha_0)
 
         # calculate alpha_1
         alpha_1 = (
@@ -246,129 +243,72 @@ class Forward_Backward_order2:
         conditionals[1] = torch.sum(alpha_1)
         alpha_1 = alpha_1 / conditionals[1]
         alphas[1] = torch.sum(alpha_1, 0)
+        alphas_marginals.append(alpha_1)
 
-        if plotting and save:
-            alpha_t_filename = os.path.join(plotting_folder, f"alpha_{1}")
-            save_data(alpha_1, alpha_t_filename, print_filename=False)
-
-        alpha_t = torch.reshape(
-            alpha_1,
-            (
-                self.n_states_sqrt,
-                self.n_states_sqrt,
-                self.n_states_sqrt,
-                self.n_states_sqrt,
-            ),
-        )
+        alpha_t = alpha_1.detach().clone()
         # calculate alpha_2:T
         for t in range(2, self.n_timesteps):
-            y_sum = torch.einsum(
-                "nlj,klij->nkli", self.params["transition_matrix"], alpha_t
+            x_sum = torch.einsum(
+                "nlj,lj->nl", self.params["transition_matrix"], alpha_t
             )
-            xy_sum = torch.einsum(
-                "mki,nkli->mnkl", self.params["transition_matrix"], y_sum
-            )
-            xy_sum = torch.reshape(xy_sum, (self.n_states, self.n_states))
-            alpha_t = (xy_sum.t() * self.params["emission_probabilities"][:, t]).t()
+            alpha_t = (x_sum.t() * self.params["emission_probabilities"][:, t]).t()
             alpha_t = alpha_t.numpy().astype(np.longdouble)
             conditionals[t] = np.sum(alpha_t)
             alpha_t = alpha_t / np.sum(alpha_t)
             alpha_t = torch.from_numpy(alpha_t.astype(np.double))
             alphas[t] = torch.sum(alpha_t, 1)
 
-            if plotting and save:
-                alpha_t_filename = os.path.join(plotting_folder, f"alpha_{t}")
-                save_data(alpha_t, alpha_t_filename, print_filename=False)
+            alphas_marginals.append(alpha_t)
 
-            alpha_t = torch.reshape(
-                alpha_t,
-                (
-                    self.n_states_sqrt,
-                    self.n_states_sqrt,
-                    self.n_states_sqrt,
-                    self.n_states_sqrt,
-                ),
+        return conditionals, alphas, alphas_marginals
+
+    def backward_pass(self, conditionals):
+        # initialize list of betahs to calculate marginals
+        betas = []
+
+        # initiate with beta_T
+        beta_t = torch.ones(
+            (
+                self.n_states,
+                self.n_states,
+            ),
+            dtype=torch.double,
+        )
+        betas.append(beta_t.t())
+
+        # calculate betas recursively backward in time
+        for n in range(self.n_timesteps - 2, -1, -1):
+            betas_x = beta_t * self.params["emission_probabilities"][:, n + 1]
+            
+            x_sum = torch.einsum(
+                "jln,ln->jl",
+                self.params["transition_matrix"].permute(2, 1, 0),
+                betas_x,
             )
+            beta_t = x_sum / conditionals[n]
 
-        if plotting and save:
-            conditionals_filename = os.path.join(plotting_folder, "conditionals")
-            save_data(conditionals, conditionals_filename, print_filename=False)
-        return conditionals, alphas
+            beta_t_save = beta_t.permute(1, 0)  #0,1 or 1,0?
+            betas.append(beta_t_save)
+        
+        # reverse order of betas to 0 to T
+        return betas[::-1]
 
-    def backward_pass(self, plotting=False, plotting_folder=None):
-
-        save = True
-        conditionals_filename = os.path.join(plotting_folder, "conditionals")
-        conditionals = load_data(conditionals_filename, print_filename=False)
-
-        if save:
-            beta_t = torch.ones(
-                (
-                    self.n_states_sqrt,
-                    self.n_states_sqrt,
-                    self.n_states_sqrt,
-                    self.n_states_sqrt,
-                ),
-                dtype=torch.double,
-            )
-
-            beta_t_filename = os.path.join(
-                plotting_folder, f"beta_{self.n_timesteps - 1}"
-            )
-
-            save_data(
-                beta_t.reshape((self.n_states, self.n_states)).t(),
-                beta_t_filename,
-                print_filename=False,
-            )
-
-            # calculate betas recursively backward in time
-            for n in range(self.n_timesteps - 2, -1, -1):
-                emission = self.params["emission_probabilities"][:, n + 1].reshape(
-                    (self.n_states_sqrt, self.n_states_sqrt)
-                )
-                betas_xy = beta_t * emission
-                y_sum = torch.einsum(
-                    "jln,klmn->jklm",
-                    self.params["transition_matrix"].permute(2, 1, 0),
-                    betas_xy,
-                )
-                xy_sum = torch.einsum(
-                    "ikm,jklm->ijkl",
-                    self.params["transition_matrix"].permute(2, 1, 0),
-                    y_sum,
-                )
-                beta_t = xy_sum / conditionals[n]
-
-                beta_t_save = beta_t.permute(2, 3, 0, 1).reshape(
-                    (self.n_states, self.n_states)
-                )
-                beta_t_filename = os.path.join(plotting_folder, f"beta_{n}")
-                save_data(beta_t_save, beta_t_filename, print_filename=False)
 
     def calculate_data_likelihood(self, conditionals):
         data_likelihood = np.sum(np.log(conditionals))
-        print("LIKELIHOOD: ", data_likelihood)
+        # print("LIKELIHOOD: ", data_likelihood)
         return data_likelihood
 
-    def calculate_latent_marginals(self, plotting=False, plotting_folder=None):
+    def calculate_latent_marginals(self, conditionals, alphas, betas):
         # initialize marginals
         latent_marginals = torch.zeros((self.n_timesteps, self.n_states))
 
-        conditionals_filename = os.path.join(plotting_folder, "conditionals")
-        conditionals = load_data(conditionals_filename, print_filename=False)
         for n in range(1, self.n_timesteps):
 
-            alpha_n_filename = os.path.join(plotting_folder, f"alpha_{n}")
-            alpha_n = load_data(alpha_n_filename, print_filename=False)
+            alphas[n][alphas[n] == 0] = np.power(10.0, -30)
+            betas[n][betas[n] == 0] = np.power(10.0, -30)
 
-            beta_n_filename = os.path.join(plotting_folder, f"beta_{n}")
-            beta_n = load_data(beta_n_filename, print_filename=False)
-
-            alpha_n[alpha_n == 0] = np.power(10.0, -30)
-            beta_n[beta_n == 0] = np.power(10.0, -30)
-
-            marginal = torch.sum(((alpha_n * beta_n) * conditionals[n]), 0)
+            marginal = torch.sum(((alphas[n] * betas[n]) * conditionals[n]), 0)
             latent_marginals[n] = marginal
 
         return latent_marginals
