@@ -12,22 +12,25 @@ from typing import Optional, Tuple
 def calc_poisson_emission_probabilities_log(
     spikemat: np.ndarray, place_fields: np.ndarray, time_window_s: float
 ) -> np.ndarray:
-    """This function calculates the emission probabilities p(x_t|z_t)
+    """This function calculates the log emission probabilities p(x_t|z_t) with 
+    bayesian estimation assuming independence and poisson distribtion
     input: spikemat (T x Ncells), place_fields (Ncells x Ngrid), time_window_s
     output: (Ngrid x T matrix) of emission probabilities over time."""
     (n_timesteps, n_cells) = np.shape(spikemat)
     (n_cells, n_grid) = np.shape(place_fields)
     log_pfs = np.log(place_fields).T
-    # compute pf_spikes sum: sum_n[x_t*ln[f_n(z_t)*delta_t]]
+    # compute pf_spikes sum: sum_n[x_t*ln[f_n(z_t)]]
     pf_spikes_sum = np.zeros((n_timesteps, n_grid))
     for t in range(n_timesteps):
         x = spikemat[t]
         pf_spikes_sum[t] = np.sum(log_pfs * x, axis=1)
+    # compute time_window_spikes sum: sum_n[x_t*ln(delta_t)]
     time_window_spikes_sum = np.sum(spikemat * np.log(time_window_s), axis=1)
-    # calcualte pf_sum: sum_n[f_n(z_t)*delta_t]]
+    # compute pf_sum: sum_n[f_n(z_t)*delta_t]]
     pf_sum = time_window_s * np.sum(place_fields, axis=0)
+    # compute spike_sum ln(x_t !)
     spikes_sum = np.sum(np.log(factorial(spikemat)), axis=1)
-    # calculate emission probs
+    # calculate emission probs log p(x_t|z_t)
     pf_sum_norm = (pf_spikes_sum.T + time_window_spikes_sum).T - pf_sum
     emission_probabilities_log = pf_sum_norm.T - spikes_sum
     return emission_probabilities_log
@@ -46,8 +49,14 @@ def calc_poisson_emission_probabilities(
 def calc_poisson_emission_probability_log(
     spikemat: np.ndarray, place_fields: np.ndarray, time_window_s: float
 ) -> np.ndarray:
+    """This function calculates the emission probability p(x|z) 
+    for the stationary dynamic model with bayesian estimation assuming 
+    independence and poisson distribtion
+    input: spikemat (T x Ncells), place_fields (Ncells x Ngrid), time_window_s
+    output: (Ngrid) of emission probabilities with no time dimension"""
     (n_timesteps, n_cells) = np.shape(spikemat)
     (n_cells, n_grid) = np.shape(place_fields)
+    # sum over time, because stationary model assumes no change of z over time
     x = np.sum(spikemat, axis=0)  # sum or average
     # x = np.average(spikemat, axis=0)
     log_pfs = np.log(place_fields).T

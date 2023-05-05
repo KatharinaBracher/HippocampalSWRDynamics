@@ -38,7 +38,7 @@ class Most_Likely_Trajectories:
     def _initialize_viterbi_input(self):
         viterbi_input = dict()
         viterbi_input["initial_state_prior"] = (
-            np.ones(self.params.n_grid) / self.params.n_grid
+            np.ones(self.params.n_bins_x) / self.params.n_bins_x
         )
         return viterbi_input
 
@@ -55,19 +55,9 @@ class Most_Likely_Trajectories:
         self, structure_data: Structure_Analysis_Input, spikemat_ind: int
     ) -> np.ndarray:
         if structure_data.spikemats[spikemat_ind] is not None:
-            most_likely_trajectory_flattened = self._get_most_likely_trajectory(
+            most_likely_trajectory = self._get_most_likely_trajectory(
                 structure_data, spikemat_ind
             )
-            most_likely_trajectory = np.array(
-                [
-                    most_likely_trajectory_flattened
-                    % self.params.n_bins_x
-                    * self.params.bin_size_cm,
-                    most_likely_trajectory_flattened
-                    // self.params.n_bins_x
-                    * self.params.bin_size_cm,
-                ]
-            ).T
         else:
             most_likely_trajectory = None
         return most_likely_trajectory
@@ -89,26 +79,21 @@ class Most_Likely_Trajectories:
         return most_likely_trajectory
 
     def _calc_transition_matrix(self, sd_bins: float) -> np.ndarray:
-        """(NxN)x(NxN) matrix"""
+        """(NxN) matrix"""
         transition_mat = np.zeros(
             (
-                self.params.n_bins_x * self.params.n_bins_y,
-                self.params.n_bins_x * self.params.n_bins_y,
+                self.params.n_bins_x,
+                self.params.n_bins_x
             )
         )
-        m = np.arange(self.params.n_bins_x)
-        n = np.arange(self.params.n_bins_y)
-        mm, nn = np.meshgrid(m, n)  # t x,y
+        j = np.arange(self.params.n_bins_x)
         for i in range(self.params.n_bins_x):  # t-1 x
-            for j in range(self.params.n_bins_y):  # t-1 y
                 this_transition = np.exp(
-                    -((nn - i) ** 2 + (mm - j) ** 2)
+                    -((j - i) ** 2)
                     / (2 * sd_bins ** 2 * self.params.time_window_s)
                 )
                 flat_transition = this_transition.reshape(-1)
-                transition_mat[
-                    :, i * self.params.n_bins_x + j
-                ] = flat_transition / np.sum(flat_transition)
+                transition_mat[:, i] = flat_transition / np.sum(flat_transition)
         return transition_mat
 
     def _calc_emission_probabilities(

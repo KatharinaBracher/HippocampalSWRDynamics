@@ -8,10 +8,10 @@ from typing import Optional, Dict
 from replay_structure.metadata import Likelihood_Function_Params  # Poisson_Params
 
 # These constants are calculated across sessions in jupyter notebook (FigureS3.ipynb)
-PF_SCALING_FACTOR = 2.9
+PF_SCALING_FACTOR = 2.5  # updated 2.9
 VELOCITY_SCALING_FACTOR = 6.75
 MAX_LIKELIHOOD_SD_METERS_RIPPLES = (
-    0.74
+    0.74 
 )  # mode from diffusion gridsearch on all sessions
 MAX_LIKELIHOOD_SD_METERS_RUN_SNIPPETS = (
     0.14

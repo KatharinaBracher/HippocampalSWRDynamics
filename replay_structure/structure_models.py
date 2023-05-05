@@ -236,24 +236,6 @@ class Momentum(Structure_Model):
         return forward_backward_input
 
     def _calc_order1_transition_matrix(self, sd: float):
-        """(NxN)x(NxN) matrix
-        initial_transition = np.zeros(
-            (self.structure_data.params.n_grid, self.structure_data.params.n_grid)
-        )
-        m = np.arange(self.structure_data.params.n_bins_x)
-        n = np.arange(self.structure_data.params.n_bins_y)
-        mm, nn = np.meshgrid(m, n)  # t x,y
-        for i in range(self.structure_data.params.n_bins_x):  # t-1 x
-            for j in range(self.structure_data.params.n_bins_y):  # t-1 y
-                this_transition = np.exp(
-                    -((nn - i) ** 2 + (mm - j) ** 2)
-                    / (2 * sd ** 2 * self.structure_data.params.time_window_s)
-                )
-                flat_transition = this_transition.reshape(-1)
-                initial_transition[
-                    :, i * self.structure_data.params.n_bins_x + j
-                ] = flat_transition / np.sum(flat_transition)"""
-        
         """(NxN) matrix"""
         initial_transition = np.zeros(
             (self.structure_data.params.n_bins_x, self.structure_data.params.n_bins_x)
@@ -264,6 +246,7 @@ class Momentum(Structure_Model):
             -((j - i) ** 2)
             / (2 * sd ** 2 * self.structure_data.params.time_window_s)
             )
+            # this_transition = this_transition.reshape(-1)
             initial_transition[:, i] = this_transition / np.sum(this_transition)
         return initial_transition
 
@@ -314,11 +297,15 @@ class Stationary(Structure_Model):
         super().__init__(structure_data)
 
     def _calc_model_evidence(self, spikemat_ind: int):
+        # calculating log emission probability of spikes summed over time p(x|z)
         emission_probability_log = self._calc_emission_probability_log(spikemat_ind)
+        # calculating model evidence p(x_1:T|M)
         joint_probability = emission_probability_log - np.log(
             self.structure_data.params.n_bins_x
         )
+        # approximate maximum
         model_evidence = logsumexp(joint_probability)
+        # calculating marginals
         marginals = np.exp(emission_probability_log - emission_probability_log.max())
         return model_evidence, marginals
 
@@ -333,11 +320,14 @@ class Stationary_Gaussian(Structure_Model):
         self.latent_probabilities_normalized = self._calc_latent_probabilities()
 
     def _calc_model_evidence(self, spikemat_ind: int):
+        # calculating emission probabilities over time p(x_t|z_t)
         emission_probabilities = self._calc_emission_probabilities(spikemat_ind)
+        # calculating model evidence p(x_1:T|M, params)
         sum_z = np.matmul(
             emission_probabilities.T, self.latent_probabilities_normalized
         )
         sum_t = np.sum(np.log(sum_z), axis=0)
+        # marginalizing over uniform prior µ yileds 1/K
         model_evidence = logsumexp(-np.log(self.structure_data.params.n_bins_x) + sum_t)
         marginals = np.matmul(
             emission_probabilities.T, self.latent_probabilities_normalized.T
@@ -345,6 +335,7 @@ class Stationary_Gaussian(Structure_Model):
         return model_evidence, marginals
 
     def _calc_latent_probabilities(self):
+        # M = gaussian, p(z_t|M, params) = N(z_t|µ, sd**2I))
         # initialze matrix (Nz x Nu)
         latent_mat = np.zeros(
             (
@@ -369,11 +360,15 @@ class Random(Structure_Model):
         super().__init__(structure_data)
 
     def _calc_model_evidence(self, spikemat_ind: int):
+        # calculating log emission probabilities over time p(x_t|z_t)
         emission_probabilities_log = self._calc_emission_probabilities_log(spikemat_ind)
+        # calculating model evidence p(x_1:T|M)
         full_sum = emission_probabilities_log - np.log(
-            self.structure_data.params.n_bins_x  # changed from n_bins_x * n_bins_y
+            self.structure_data.params.n_bins_x 
         )
+        # aproximate maximum
         sum_z = logsumexp(full_sum, axis=0)
         model_evidence = np.sum(sum_z)
+        # calculating marginals
         marginals = np.exp(emission_probabilities_log)
         return model_evidence, marginals
