@@ -147,27 +147,35 @@ class Diffusion(Structure_Model):
         self.forward_backward_input = self._initialize_forward_backward_input()
 
     def _calc_model_evidence(self, spikemat_ind: int):
+        # calculating emission probabilities over time p(x_t|z_t)
         self.forward_backward_input[
             "emission_probabilities"
         ] = self._calc_emission_probabilities(spikemat_ind)
+        # calculating model evidence p(x_1:T|M) and marginals
         forward_backward_output = fb.Forward_Backward(
             self.forward_backward_input
         ).run_forward_backward_algorithm("no joints")
+        # model evidence p(x_1:T)
         model_ev = forward_backward_output["data_likelihood"]
+        # marginals p(z_t|x_1:T, M)
         marginals = forward_backward_output["latent_marginals"].T
         return model_ev, marginals
 
     def _initialize_forward_backward_input(self) -> dict:
         forward_backward_input = dict()
+        # calculate p(z_t)
         forward_backward_input["initial_state_prior"] = np.ones(
             self.structure_data.params.n_bins_x) / self.structure_data.params.n_bins_x
+        # calculate p(z_t|z_t-1) 
         forward_backward_input["transition_matrix"] = self._calc_transition_matrix(
             self.sd_bins
         )
         return forward_backward_input
 
     def _calc_transition_matrix(self, sd_bins: float) -> np.ndarray:
-        """NxN matrix"""
+        """KxK matrix
+        transition probability p(z_t|z_t-1) 
+        with gaussian transition structure N(t_t|z_t-1, sd**2I)"""
         transition_mat = np.zeros(
             (self.structure_data.params.n_bins_x, self.structure_data.params.n_bins_x)
         )
@@ -206,9 +214,11 @@ class Momentum(Structure_Model):
         self.plotting = plotting
         
     def _calc_model_evidence(self, spikemat_ind: int):
+        # calculating emission probabilities over time p(x_t|z_t)
         self.forward_backward_input[
             "emission_probabilities"
         ] = self.get_emission_probabilities(spikemat_ind)
+        # calculating model evidence p(x_1:T|M) and marginals p(z_t|x_1:T, M)
         forward_backward_output = fb.Forward_Backward_order2(
             self.forward_backward_input
         ).run_forward_backward_algorithm(
@@ -236,7 +246,7 @@ class Momentum(Structure_Model):
         return forward_backward_input
 
     def _calc_order1_transition_matrix(self, sd: float):
-        """(NxN) matrix"""
+        """(KxK) matrix"""
         initial_transition = np.zeros(
             (self.structure_data.params.n_bins_x, self.structure_data.params.n_bins_x)
         )
@@ -305,7 +315,7 @@ class Stationary(Structure_Model):
         )
         # approximate maximum
         model_evidence = logsumexp(joint_probability)
-        # calculating marginals
+        # calculating marginals p(x_t|z_t)/p(x_1:T) = p(z_t|x_1:T, M)
         marginals = np.exp(emission_probability_log - emission_probability_log.max())
         return model_evidence, marginals
 
@@ -329,6 +339,7 @@ class Stationary_Gaussian(Structure_Model):
         sum_t = np.sum(np.log(sum_z), axis=0)
         # marginalizing over uniform prior µ yileds 1/K
         model_evidence = logsumexp(-np.log(self.structure_data.params.n_bins_x) + sum_t)
+        # calculating marginals p(x_t|z_t)*p(z_t) = p(z_t|x_1:T, M)
         marginals = np.matmul(
             emission_probabilities.T, self.latent_probabilities_normalized.T
         ).T
@@ -369,6 +380,6 @@ class Random(Structure_Model):
         # aproximate maximum
         sum_z = logsumexp(full_sum, axis=0)
         model_evidence = np.sum(sum_z)
-        # calculating marginals
+        # calculating marginals p(z_t|x_1:T, M)
         marginals = np.exp(emission_probabilities_log)
         return model_evidence, marginals
