@@ -11,6 +11,7 @@ from typing import Optional
 
 from replay_structure.ripple_preprocessing import Ripple_Preprocessing
 from replay_structure.run_snippet_preprocessing import Run_Snippet_Preprocessing
+from replay_structure.run_snippet_preprocessing import Selected_Data_Preprocessing
 from replay_structure.highsynchronyevents import HighSynchronyEvents_Preprocessing
 from replay_structure.simulated_neural_data import Simulated_Data_Preprocessing
 from replay_structure.config import (
@@ -28,6 +29,7 @@ class Structure_Analysis_Input:
         self,
         pf_matrix: np.ndarray,
         spikemats: dict,
+        running_direction: bool,
         likelihood_function_params: Likelihood_Function_Params,
         time_window_ms: int,
         bin_size_cm: int = 4,
@@ -37,6 +39,7 @@ class Structure_Analysis_Input:
     ):
         self.pf_matrix = pf_matrix
         self.spikemats = spikemats
+        self.running_direction = running_direction
         self.params = Structure_Analysis_Input_Parameters(
             likelihood_function_params,
             time_window_ms,
@@ -52,6 +55,7 @@ class Structure_Analysis_Input:
         ripple_data: Ripple_Preprocessing,
         likelihood_function: Likelihood_Function,
         select_population_burst=True,
+        running_direction = False
     ):
         if isinstance(likelihood_function, Poisson):
             likelihood_function_params: Likelihood_Function_Params = Poisson_Params(
@@ -69,9 +73,11 @@ class Structure_Analysis_Input:
             spikemats = ripple_data.ripple_info["spikemats_popburst"]
         else:
             spikemats = ripple_data.ripple_info["spikemats_fullripple"]
+
         return cls(
             ripple_data.pf_matrix,
             spikemats,
+            running_direction,
             likelihood_function_params,
             ripple_data.params.time_window_ms,
             bin_size_cm=ripple_data.params.bin_size_cm,
@@ -85,6 +91,7 @@ class Structure_Analysis_Input:
         highsynchrony_data: HighSynchronyEvents_Preprocessing,
         likelihood_function: Likelihood_Function,
         select_population_burst=True,
+        running_direction = False
     ):
         if isinstance(likelihood_function, Poisson):
             likelihood_function_params: Likelihood_Function_Params = Poisson_Params(
@@ -105,6 +112,7 @@ class Structure_Analysis_Input:
         return cls(
             highsynchrony_data.pf_matrix,
             spikemats,
+            running_direction,
             likelihood_function_params,
             highsynchrony_data.params.time_window_ms,
             bin_size_cm=highsynchrony_data.params.bin_size_cm,
@@ -117,6 +125,7 @@ class Structure_Analysis_Input:
         cls,
         run_snippet_data: Run_Snippet_Preprocessing,
         likelihood_function: Likelihood_Function,
+        running_direction = False
     ):
         assert isinstance(likelihood_function, Poisson)
         likelihood_function_params: Likelihood_Function_Params = Poisson_Params(
@@ -125,6 +134,29 @@ class Structure_Analysis_Input:
         return cls(
             run_snippet_data.pf_matrix,
             run_snippet_data.run_info["spikemats"],
+            running_direction,
+            likelihood_function_params,
+            run_snippet_data.params.time_window_ms,
+            bin_size_cm=run_snippet_data.params.bin_size_cm,
+            n_bins_x=run_snippet_data.params.n_bins_x,
+            n_bins_y=run_snippet_data.params.n_bins_y,
+        )
+    
+    @classmethod
+    def reformat_selected_data(
+        cls,
+        run_snippet_data: Selected_Data_Preprocessing,
+        likelihood_function: Likelihood_Function,
+        running_direction = False
+    ):
+        assert isinstance(likelihood_function, Poisson)
+        likelihood_function_params: Likelihood_Function_Params = Poisson_Params(
+            rate_scaling=None
+        )
+        return cls(
+            run_snippet_data.pf_matrix,
+            run_snippet_data.run_info["spikemats"],
+            running_direction,
             likelihood_function_params,
             run_snippet_data.params.time_window_ms,
             bin_size_cm=run_snippet_data.params.bin_size_cm,
@@ -137,10 +169,12 @@ class Structure_Analysis_Input:
         cls,
         simulated_data: Simulated_Data_Preprocessing,
         likelihood_function_params: Likelihood_Function_Params,
+        running_direction = False
     ):
         return cls(
             simulated_data.params.pf_matrix,
             simulated_data.spikemats,
+            running_direction,
             likelihood_function_params,
             simulated_data.params.time_window_ms,
             bin_size_cm=simulated_data.params.bin_size_cm,
@@ -154,6 +188,7 @@ class Structure_Analysis_Input:
         ripple_data: Ripple_Preprocessing,
         likelihood_function: Likelihood_Function,
         select_population_burst=False,
+        running_direction = False
     ):
         assert isinstance(likelihood_function, Poisson)
         likelihood_function_params: Likelihood_Function_Params = Poisson_Params(
@@ -166,6 +201,7 @@ class Structure_Analysis_Input:
         return cls(
             ripple_data.pf_matrix,
             spikemats,
+            running_direction,
             likelihood_function_params,
             ripple_data.params.time_window_ms,
             bin_size_cm=ripple_data.params.bin_size_cm,
@@ -179,6 +215,7 @@ class Structure_Analysis_Input:
         cls,
         highsynchrony_data: HighSynchronyEvents_Preprocessing,
         likelihood_function: Likelihood_Function,
+        running_direction = False
     ):
         assert isinstance(likelihood_function, Poisson)
         likelihood_function_params: Likelihood_Function_Params = Poisson_Params(
@@ -188,6 +225,7 @@ class Structure_Analysis_Input:
         return cls(
             highsynchrony_data.pf_matrix,
             spikemats,
+            running_direction,
             likelihood_function_params,
             highsynchrony_data.params.time_window_ms,
             bin_size_cm=highsynchrony_data.params.bin_size_cm,

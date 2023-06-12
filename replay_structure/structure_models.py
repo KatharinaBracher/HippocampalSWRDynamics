@@ -68,6 +68,11 @@ class Structure_Model:
         pass
 
     def _calc_emission_probabilities(self, spikemat_ind: int) -> np.ndarray:
+
+        ######## (pfpos, pfneg) = (self.structure_data.pf_matrix[:,:self.structure_data.params.n_bins_x],
+        ########                self.structure_data.pf_matrix[:,self.structure_data.params.n_bins_x:])
+        ######## pf = (pfpos+pfneg)/2
+
         if isinstance(
             self.structure_data.params.likelihood_function_params, Neg_Binomial_Params
         ):
@@ -91,6 +96,10 @@ class Structure_Model:
         return emission_probabilities
 
     def _calc_emission_probabilities_log(self, spikemat_ind: int) -> np.ndarray:
+
+        ########(pfpos, pfneg) = (self.structure_data.pf_matrix[:,:self.structure_data.params.n_bins_x],
+        ########                self.structure_data.pf_matrix[:,self.structure_data.params.n_bins_x:])
+        ######## pf = (pfpos+pfneg)/2
         if isinstance(
             self.structure_data.params.likelihood_function_params, Neg_Binomial_Params
         ):
@@ -114,6 +123,10 @@ class Structure_Model:
         return emission_probabilities_log
 
     def _calc_emission_probability_log(self, spikemat_ind: int) -> np.ndarray:
+
+        ########(pfpos, pfneg) = (self.structure_data.pf_matrix[:,:self.structure_data.params.n_bins_x],
+        ########                self.structure_data.pf_matrix[:,self.structure_data.params.n_bins_x:])
+        ########pf = (pfpos+pfneg)/2
         if isinstance(
             self.structure_data.params.likelihood_function_params, Neg_Binomial_Params
         ):
@@ -147,6 +160,7 @@ class Diffusion(Structure_Model):
         self.forward_backward_input = self._initialize_forward_backward_input()
 
     def _calc_model_evidence(self, spikemat_ind: int):
+        ######## self.structure_data.running_direction=False
         # calculating emission probabilities over time p(x_t|z_t)
         self.forward_backward_input[
             "emission_probabilities"
@@ -162,10 +176,16 @@ class Diffusion(Structure_Model):
         return model_ev, marginals
 
     def _initialize_forward_backward_input(self) -> dict:
+        if self.structure_data.running_direction:
+            # account for postitive and negative direction 
+            n_bins_x = self.structure_data.params.n_bins_x*2
+        else:
+            n_bins_x = self.structure_data.params.n_bins_x
+
         forward_backward_input = dict()
         # calculate p(z_t)
         forward_backward_input["initial_state_prior"] = np.ones(
-            self.structure_data.params.n_bins_x) / self.structure_data.params.n_bins_x
+            n_bins_x) / n_bins_x
         # calculate p(z_t|z_t-1) 
         forward_backward_input["transition_matrix"] = self._calc_transition_matrix(
             self.sd_bins
@@ -176,6 +196,10 @@ class Diffusion(Structure_Model):
         """KxK matrix
         transition probability p(z_t|z_t-1) 
         with gaussian transition structure N(t_t|z_t-1, sd**2I)"""
+        norm = 1
+        if self.structure_data.running_direction:
+            norm = 2  # ensure sum to 1
+
         transition_mat = np.zeros(
             (self.structure_data.params.n_bins_x, self.structure_data.params.n_bins_x)
         )
@@ -185,7 +209,13 @@ class Diffusion(Structure_Model):
                 -((j - i) ** 2)
                 / (2 * sd_bins ** 2 * self.structure_data.params.time_window_s)
             )
-            transition_mat[:, i] = this_transition / np.sum(this_transition)
+            transition_mat[:, i] = this_transition / (norm*np.sum(this_transition))
+
+        # stacking transition matrix, to account for same locations for postive and negative rd
+        if self.structure_data.running_direction:
+            transition_mat = np.vstack((transition_mat,transition_mat))
+            transition_mat = np.hstack((transition_mat,transition_mat))
+
         return transition_mat
 
 
@@ -215,9 +245,13 @@ class Momentum(Structure_Model):
         
     def _calc_model_evidence(self, spikemat_ind: int):
         # calculating emission probabilities over time p(x_t|z_t)
+        ######## self.structure_data.running_direction=False
+        self.emission_probabilities=None
+
         self.forward_backward_input[
             "emission_probabilities"
         ] = self.get_emission_probabilities(spikemat_ind)
+
         # calculating model evidence p(x_1:T|M) and marginals p(z_t|x_1:T, M)
         forward_backward_output = fb.Forward_Backward_order2(
             self.forward_backward_input
@@ -232,10 +266,15 @@ class Momentum(Structure_Model):
         return model_ev, marginals
 
     def _initialize_forward_backward_input(self) -> dict:
+        if self.structure_data.running_direction:
+            # account for postitive and negative direction 
+            n_bins_x = self.structure_data.params.n_bins_x*2
+        else:
+            n_bins_x = self.structure_data.params.n_bins_x
+
         forward_backward_input = dict()
         forward_backward_input["initial_state_prior"] = torch.from_numpy(
-            np.ones(self.structure_data.params.n_bins_x)
-            / self.structure_data.params.n_bins_x
+            np.ones(n_bins_x)/n_bins_x
         )
         forward_backward_input["initial_transition"] = torch.from_numpy(
             self._calc_order1_transition_matrix(self.sd_0_bins)
@@ -247,6 +286,10 @@ class Momentum(Structure_Model):
 
     def _calc_order1_transition_matrix(self, sd: float):
         """(KxK) matrix"""
+        norm = 1
+        if self.structure_data.running_direction:
+            norm = 2  # ensure sum to 1
+
         initial_transition = np.zeros(
             (self.structure_data.params.n_bins_x, self.structure_data.params.n_bins_x)
         )
@@ -257,11 +300,20 @@ class Momentum(Structure_Model):
             / (2 * sd ** 2 * self.structure_data.params.time_window_s)
             )
             # this_transition = this_transition.reshape(-1)
-            initial_transition[:, i] = this_transition / np.sum(this_transition)
+            initial_transition[:, i] = this_transition / (norm*np.sum(this_transition))
+
+        if self.structure_data.running_direction:
+            initial_transition = np.vstack((initial_transition,initial_transition))
+            initial_transition = np.hstack((initial_transition,initial_transition))
+
         return initial_transition
 
     def _calc_order2_transition_matrix(self, sd: float, decay: float):
         """(n x n x n) matrix"""
+        norm = 1
+        if self.structure_data.running_direction:
+            norm = 2
+
         var_scaled = (
             (sd ** 2 * self.structure_data.params.time_window_s ** 2)
             / (2 * decay)
@@ -281,7 +333,7 @@ class Momentum(Structure_Model):
                     1 + np.exp(-self.structure_data.params.time_window_s * decay)
                 ) * k - (np.exp(-self.structure_data.params.time_window_s * decay)) * i
                 this_transition = np.exp(-((m - mean) ** 2) / (2 * var_scaled))
-                norm_sum = np.sum(this_transition)
+                norm_sum = norm*np.sum(this_transition)
                 if norm_sum == 0:
                     max_prob_ind = (
                         0 if mean < 0 else self.structure_data.params.n_bins_x - 1
@@ -290,6 +342,12 @@ class Momentum(Structure_Model):
                     transition_mat[:, k, i] = this_transition
                 else:
                     transition_mat[:, k, i] = this_transition / norm_sum
+
+        if self.structure_data.running_direction:
+            transition_mat = np.concatenate((transition_mat, transition_mat), axis=0)
+            transition_mat = np.concatenate((transition_mat, transition_mat), axis=1)
+            transition_mat = np.concatenate((transition_mat, transition_mat), axis=2)
+            
         return transition_mat
 
     def get_emission_probabilities(self, spikemat_ind: int):
@@ -310,8 +368,9 @@ class Stationary(Structure_Model):
         # calculating log emission probability of spikes summed over time p(x|z)
         emission_probability_log = self._calc_emission_probability_log(spikemat_ind)
         # calculating model evidence p(x_1:T|M)
+        norm_bins = emission_probability_log.shape[0]
         joint_probability = emission_probability_log - np.log(
-            self.structure_data.params.n_bins_x
+            norm_bins
         )
         # approximate maximum
         model_evidence = logsumexp(joint_probability)
@@ -331,6 +390,7 @@ class Stationary_Gaussian(Structure_Model):
 
     def _calc_model_evidence(self, spikemat_ind: int):
         # calculating emission probabilities over time p(x_t|z_t)
+        ######## self.structure_data.running_direction=False
         emission_probabilities = self._calc_emission_probabilities(spikemat_ind)
         # calculating model evidence p(x_1:T|M, params)
         sum_z = np.matmul(
@@ -338,7 +398,8 @@ class Stationary_Gaussian(Structure_Model):
         )
         sum_t = np.sum(np.log(sum_z), axis=0)
         # marginalizing over uniform prior µ yileds 1/K
-        model_evidence = logsumexp(-np.log(self.structure_data.params.n_bins_x) + sum_t)
+        norm_bins = emission_probabilities.shape[0]
+        model_evidence = logsumexp(-np.log(norm_bins) + sum_t)
         # calculating marginals p(x_t|z_t)*p(z_t) = p(z_t|x_1:T, M)
         marginals = np.matmul(
             emission_probabilities.T, self.latent_probabilities_normalized.T
@@ -348,20 +409,26 @@ class Stationary_Gaussian(Structure_Model):
     def _calc_latent_probabilities(self):
         # M = gaussian, p(z_t|M, params) = N(z_t|µ, sd**2I))
         # initialze matrix (Nz x Nu)
+        if self.structure_data.running_direction:
+            # account for postitive and negative direction 
+            n_bins_x = self.structure_data.params.n_bins_x*2
+        else:
+            n_bins_x = self.structure_data.params.n_bins_x
+
         latent_mat = np.zeros(
             (
-                self.structure_data.params.n_bins_x,
-                self.structure_data.params.n_bins_x,
+                n_bins_x,
+                n_bins_x,
             )
         )
-        x = np.arange(self.structure_data.params.n_bins_x)
-        for m in range(self.structure_data.params.n_bins_x):
+        x = np.arange(n_bins_x)
+        for m in range(n_bins_x):
             this_prob = sp.multivariate_normal(
                 m, self.sd_bins ** 2
             ).pdf(np.transpose(x))
             latent_mat[:, m] = this_prob / this_prob.sum()
         latent_mat = latent_mat.reshape(
-            (self.structure_data.params.n_bins_x, self.structure_data.params.n_bins_x)
+            (n_bins_x, n_bins_x)
         )
         return latent_mat
 
@@ -373,13 +440,20 @@ class Random(Structure_Model):
     def _calc_model_evidence(self, spikemat_ind: int):
         # calculating log emission probabilities over time p(x_t|z_t)
         emission_probabilities_log = self._calc_emission_probabilities_log(spikemat_ind)
+        # calculating marginals p(z_t|x_1:T, M)
+        marginals = np.exp(emission_probabilities_log)
+
+        # _marginalize over running direction to get evidence
+        '''if self.structure_data.running_direction:
+            emission_probabilities_log = emission_probabilities_log[
+                :self.structure_data.params.n_bins_x,:] + emission_probabilities_log[
+                    self.structure_data.params.n_bins_x:,:]'''
+        
         # calculating model evidence p(x_1:T|M)
-        full_sum = emission_probabilities_log - np.log(
-            self.structure_data.params.n_bins_x 
-        )
+        norm_bins = emission_probabilities_log.shape[0]
+        full_sum = emission_probabilities_log - np.log(norm_bins)
         # aproximate maximum
         sum_z = logsumexp(full_sum, axis=0)
         model_evidence = np.sum(sum_z)
-        # calculating marginals p(z_t|x_1:T, M)
-        marginals = np.exp(emission_probabilities_log)
+
         return model_evidence, marginals

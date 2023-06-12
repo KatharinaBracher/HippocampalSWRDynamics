@@ -18,8 +18,8 @@ notebook = "^6.0.3"
 click = "^7.1.1"
 seaborn = "^0.10.1"
 compress-pickle = "^2.0.1"
-
-python = "^3.8"
+mat73 = "^0.60"
+python = "^3.7"
 ipython = "^7.13.0"
 
 [tool.poetry.dev-dependencies]

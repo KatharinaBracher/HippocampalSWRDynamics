@@ -15,7 +15,7 @@ class RatDay_Preprocessing:
     5. Calculate 1D place fields.
     """
 
-    def __init__(self, matlab_data, params: RatDay_Preprocessing_Parameters) -> None:
+    def __init__(self, matlab_data, params: RatDay_Preprocessing_Parameters, running_direction=False) -> None:
         """
         Reformats and preprocesses the data.
         """
@@ -25,11 +25,25 @@ class RatDay_Preprocessing:
         print("Cleaning data")
         self.data = self.clean_recording_data(self.raw_data)
         print("Calculating run periods")
-        self.velocity_info = self.calculate_velocity_info()
-        ("Calculating place fields")
-        np.random.seed(0)
-        self.place_field_data = self.calculate_place_fields()
-        print("DONE")
+        if running_direction:
+            self.velocity_info_pos = self.calculate_velocity_info(rd='+')
+            print("Calculating positive place fields")
+            np.random.seed(0)
+            self.place_field_data_pos = self.calculate_place_fields(self.velocity_info_pos)
+
+            self.velocity_info_neg = self.calculate_velocity_info(rd='-')
+            print("Calculating negative place fields")
+            np.random.seed(0)
+            self.place_field_data_neg = self.calculate_place_fields(self.velocity_info_neg)
+
+            self.place_field_data = self.combine_place_field_data()
+            print("DONE")
+        else:
+            self.velocity_info = self.calculate_velocity_info()
+            print("Calculating place fields")
+            np.random.seed(0)
+            self.place_field_data = self.calculate_place_fields(self.velocity_info)
+            print("DONE")
 
     # @staticmethod
     def reformat_data(self, matlab_data) -> dict:
@@ -178,7 +192,7 @@ class RatDay_Preprocessing:
 
     # ----------------------------
 
-    def calculate_velocity_info(self) -> dict:
+    def calculate_velocity_info(self, rd=None) -> dict:
         velocity_info = dict()
         velocity_info["vel_times_s"] = self.calc_velocity_times(
             self.data["pos_times_s"]
@@ -187,7 +201,7 @@ class RatDay_Preprocessing:
             self.data["pos_xy_cm"]
         )
         (velocity_info["run_starts"], velocity_info["run_ends"]) = self.get_run_periods(
-            velocity_info["vel_cm_per_s"], velocity_info["vel_times_s"]
+            velocity_info["vel_cm_per_s"], velocity_info["vel_times_s"], rd
         )
         return velocity_info
 
@@ -205,19 +219,28 @@ class RatDay_Preprocessing:
         return velocity
 
     def get_run_periods(
-        self, velocity: np.ndarray, velocity_times: np.ndarray
+        self, velocity: np.ndarray, velocity_times: np.ndarray, rd=None
     ) -> tuple:
         # only use spikes from when animal was moving over running velocity threshold
         if np.any(np.isnan(velocity)):
             velocity_times = velocity_times[~np.isnan(velocity)]
             velocity = velocity[~np.isnan(velocity)]
-        run_boolean = abs(velocity) > self.params.velocity_run_threshold_cm_per_s
-        run_starts, run_ends = utils.boolean_to_times(run_boolean, velocity_times)
+        
+        if not rd:
+            run_boolean = abs(velocity) > self.params.velocity_run_threshold_cm_per_s
+            run_starts, run_ends = utils.boolean_to_times(run_boolean, velocity_times)
+        if rd=='+':
+            run_boolean_pos = velocity > self.params.velocity_run_threshold_cm_per_s
+            run_starts, run_ends = utils.boolean_to_times(run_boolean_pos, velocity_times)
+        if rd=='-':
+            run_boolean_pos = -velocity > self.params.velocity_run_threshold_cm_per_s
+            run_starts, run_ends = utils.boolean_to_times(run_boolean_pos, velocity_times)
+
         return (run_starts, run_ends)
 
     # ----------------------------
 
-    def calculate_place_fields(self) -> dict:
+    def calculate_place_fields(self, velocity_info) -> dict:
         """Calculate place fields"""
         place_field_data = dict()
         spike_ids = self.data["spike_ids"].copy()
@@ -226,7 +249,7 @@ class RatDay_Preprocessing:
             self.data["spike_times_s"],
             self.data["pos_xy_cm"],
             self.data["pos_times_s"],
-            self.velocity_info,
+            velocity_info,
         )
 
                
@@ -269,6 +292,29 @@ class RatDay_Preprocessing:
         place_field_data["n_place_cells"],
         ) = (np.arange(0, self.data['n_cells'] ,1),
             self.data['n_cells'])
+        return place_field_data
+    
+    def combine_place_field_data(self) -> dict:
+        """Combine negative and positive running direction place field data"""
+        place_field_data = dict()
+        place_field_data["run_data"] = {'+': self.place_field_data_pos["run_data"], 
+                                        '-': self.place_field_data_neg["run_data"]}
+        place_field_data["spatial_grid"] = self.place_field_data_pos["spatial_grid"]
+        place_field_data["position_histogram"] = {'+': self.place_field_data_pos["position_histogram"], 
+                                                  '-': self.place_field_data_neg["position_histogram"]}
+        place_field_data["spike_histograms"] = {'+': self.place_field_data_pos["spike_histograms"], 
+                                                '-': self.place_field_data_neg["spike_histograms"]}
+        place_field_data["place_fields"] = np.concatenate((self.place_field_data_pos["place_fields"],
+                                                          self.place_field_data_neg["place_fields"]), axis=1)
+        place_field_data["place_fields_likelihood"] = {'+': self.place_field_data_pos["place_fields_likelihood"], 
+                                                       '-': self.place_field_data_neg["place_fields_likelihood"]}
+        place_field_data["mean_firing_rate_array"] = np.mean([self.place_field_data_pos["mean_firing_rate_array"], 
+                                                              self.place_field_data_neg["mean_firing_rate_array"]], 
+                                                              axis=0)
+        place_field_data["max_firing_rate_array"] =  {'+': self.place_field_data_pos["max_firing_rate_array"], 
+                                                      '-': self.place_field_data_neg["max_firing_rate_array"]}
+        place_field_data["place_cell_ids"] = self.place_field_data_pos["place_cell_ids"]
+        place_field_data["n_place_cells"] = self.place_field_data_pos["n_place_cells"]
         return place_field_data
 
     @staticmethod

@@ -117,7 +117,7 @@ class Forward_Backward:
         """forward backward pass: p(z_t|x_1:t) = (alpha * beta) normalized"""
         latent_marginals = np.zeros((self.n_timesteps, self.n_states))
         for n in range(self.n_timesteps):
-            latent_marginals[n] = (alphas[n] * betas[n]) / conditionals[n]
+            latent_marginals[n] = (alphas[n] * betas[n]) / conditionals[n] # remove
         return latent_marginals
 
     def calculate_latent_joints(self, alphas, betas):
@@ -320,7 +320,7 @@ class Forward_Backward_order2:
         # initialize marginals
         latent_marginals = torch.zeros((self.n_timesteps, self.n_states))
 
-        for n in range(1, self.n_timesteps):
+        for n in range(0, self.n_timesteps):
 
             alphas[n][alphas[n] == 0] = np.power(10.0, -30)
             betas[n][betas[n] == 0] = np.power(10.0, -30)

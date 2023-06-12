@@ -173,6 +173,33 @@ class Run_Snippet_Preprocessing_Parameters:
         self.n_bins_y = self.ratday_preprocessing_params.n_bins_y
         self.bin_size_cm = self.ratday_preprocessing_params.bin_size_cm
 
+class Selected_Data_Preprocessing_Parameters:
+    """Defines parameters for preprocessing neural data during run snippets for
+    structure analysis.
+    """
+
+    def __init__(
+        self,
+        ratday_preprocessing_params: RatDay_Preprocessing_Parameters,
+        time_window_ms: int = 200,
+        time_window_advance_ms: Optional[int] = None,
+        run_period_threshold_s: float = 2,
+        random_seed=0
+    ):
+        self.ratday_preprocessing_params = ratday_preprocessing_params
+        self.time_window_ms = time_window_ms
+        if time_window_advance_ms is None:
+            self.time_window_advance_ms = time_window_ms
+        else:
+            self.time_window_advance_ms = time_window_advance_ms
+        self.time_window_s: float = self.time_window_ms / 1000
+        self.time_window_advance_s: float = self.time_window_advance_ms / 1000
+        self.random_seed = random_seed
+        # extract common parameters for easier use
+        self.n_bins_x = self.ratday_preprocessing_params.n_bins_x
+        self.n_bins_y = self.ratday_preprocessing_params.n_bins_y
+        self.bin_size_cm = self.ratday_preprocessing_params.bin_size_cm
+
 
 class Structure_Analysis_Input_Parameters:
     """Defines parameters for bringing preprocessed SWR, HSE, run snippets, and

@@ -117,7 +117,7 @@ class Momentum(Structure_Gridsearch):
             for i, sd_meters in enumerate(self.gridsearch_params["sd_array_meters"]):
                 print("sd = {:.2}".format(sd_meters))
                 for j, decay in enumerate(self.gridsearch_params["decay_array"]):
-                    print("decay = {}".format(decay))
+                    # print("decay = {}".format(decay))
 
                     if self.adjust_params:
                         (decay, sd_meters) = utils.get_adjusted_parameters(
