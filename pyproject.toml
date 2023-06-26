@@ -9,9 +9,9 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-numpy = "^1.18.2"
+numpy = ">1.20,<1.25"
 pandas = "^1.0.3"
-scipy = "^1.4.1"
+scipy = "^1.10.1"
 matplotlib = "^3.2.1"
 torch = "^1.4.0"
 notebook = "^6.0.3"
@@ -19,8 +19,11 @@ click = "^7.1.1"
 seaborn = "^0.10.1"
 compress-pickle = "^2.0.1"
 mat73 = "^0.60"
-python = "^3.7"
+python = ">=3.9,<3.13"
 ipython = "^7.13.0"
+
+py-compressed-kde = { git = "https://github.com/KatharinaBracher/py-compressed-kde.git", subdirectory = "python" }
+fklab-python-core = { git = "https://github.com/KatharinaBracher/fklab-python-core" }
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
