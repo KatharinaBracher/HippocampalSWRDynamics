@@ -406,6 +406,30 @@ def aggregate_momentum_gridsearch(
     )
 
 
+def aggregate_momentum_gridsearch_(
+    structure_data,
+    gs_results
+):
+    # get n_ripples
+    n_spikemats = len(structure_data.spikemats)
+
+    # load first ripple and get gridsearch parameters
+    momentum_gridsearch_0 = gs_results[0]
+    assert isinstance(momentum_gridsearch_0, Structure_Gridsearch)
+    n_sd = len(momentum_gridsearch_0.gridsearch_params["sd_array_meters"])
+    n_decay = len(momentum_gridsearch_0.gridsearch_params["decay_array"])
+
+    # fill out gridsearch_results
+    gridsearch_results = np.full((n_spikemats, n_sd, n_decay), np.nan)
+    to_run_on_o2_medium = np.array([])
+    for ripple in range(n_spikemats):
+        gridsearch_results[ripple] = gs_results[ripple].gridsearch_results
+
+    # replace gridsearch_results and save
+    momentum_gridsearch_aggregated = momentum_gridsearch_0
+    momentum_gridsearch_aggregated.gridsearch_results = gridsearch_results
+    return momentum_gridsearch_aggregated
+
 # -----
 
 
