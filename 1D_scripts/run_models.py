@@ -44,7 +44,7 @@ def run_model(
     data_file_ = re.split('(spikemat_)', data_file) 
     filename = os.path.join(
         RESULTS_PATH,
-        f"{data_file_[0]}model_evidence_{model_name}{filename_ext}.obj",
+        f"{data_file_[0]}model_evidence_{model_name}_{data_file_[-1]}",
     )
     save_data(model_results, filename)
 
@@ -66,7 +66,9 @@ def main(
 ):
     model = string_to_model(model_name)
     filename = os.path.join(
-    DATA_PATH, data_file)
+    DATA_PATH,
+    'structure_analysis_input',
+    data_file)
     structure_data = load_data(filename, False)
 
     print(

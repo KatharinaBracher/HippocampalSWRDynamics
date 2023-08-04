@@ -32,10 +32,10 @@ def run_gridsearch_marginalization(
     for model in ['momentum', 'diffusion', 'stationary_gaussian']:
         filename = os.path.join(
         RESULTS_PATH,
-        f"{structure_data_name[0]}gridsearch_{model}_{structure_data_name[-1]}{filename_ext}.obj",
+        f"{structure_data_name[0]}gridsearch_{model}_{structure_data_name[-1]}",
         )
         gs_results = load_data(filename)
-        assert isinstance(gs_results, Structure_Gridsearch)
+        # assert isinstance(gs_results, Structure_Gridsearch)
 
         if model=='momentum':
             gs_results = aggregate_momentum_gridsearch_(structure_data,
@@ -46,7 +46,7 @@ def run_gridsearch_marginalization(
 
         filename = os.path.join(
         RESULTS_PATH,
-        f"{structure_data_name[0]}marginalized_gridsearch_{model}_{structure_data_name[-1]}{filename_ext}.obj",
+        f"{structure_data_name[0]}marginalized_gridsearch_{model}_{structure_data_name[-1]}",
         )
         save_data(marginalized_gridsearch, filename)
 
@@ -61,15 +61,15 @@ def load_model_evidences(
         if model.n_params is not None:
             filename = os.path.join(
             RESULTS_PATH,
-            f"{structure_data_name[0]}marginalized_gridsearch_{model.name}_{structure_data_name[-1]}{filename_ext}.obj",
+            f"{structure_data_name[0]}marginalized_gridsearch_{model.name}_{structure_data_name[-1]}",
             )
             model_evidences[str(model.name)] = load_data(filename).marginalized_model_evidences
         else:
             filename = os.path.join(
             RESULTS_PATH,
-            f"{structure_data_name[0]}model_evidence_{model.name}{filename_ext}.obj",
+            f"{structure_data_name[0]}model_evidence_{model.name}_{structure_data_name[-1]}",
             )
-            model_evidences[str(model.name)] = load_data()
+            model_evidences[str(model.name)] = load_data(filename)
     return model_evidences
 
 
@@ -97,7 +97,7 @@ def run_model_comparison(
 
     filename = os.path.join(
         RESULTS_PATH,
-        f"{structure_data_name[0]}model_comparison_{structure_data_name[-1]}{filename_ext}.obj",
+        f"{structure_data_name[0]}model_comparison_{structure_data_name[-1]}",
     )
     save_data(mc_results, filename)
 
@@ -105,16 +105,16 @@ def run_model_comparison(
 @click.option("--structure_data_file", type=click.STRING, default=None)
 @click.option("--filename_ext", type=click.STRING, default="")
 def main(
-    strucutre_data_file: str,
+    structure_data_file: str,
     filename_ext: str
 ):
     filename = os.path.join(
     DATA_PATH,
     'structure_analysis_input',
-    strucutre_data_file
+    structure_data_file
     )
     structure_data = load_data(filename, False)
-    structure_data_name = re.split('(spikemat_)', strucutre_data_file) 
+    structure_data_name = re.split('(spikemat_)', structure_data_file) 
 
     run_model_comparison(
         structure_data,

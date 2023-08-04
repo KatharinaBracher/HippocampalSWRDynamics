@@ -36,7 +36,7 @@ def run_gridsearch(
         params = Structure_Model_Gridsearch_Parameters.ripple_diffusion_params()
         gs_results = gridsearch.Diffusion(structure_data, params)
     if isinstance(model.name, Momentum):
-        print('running gridsearch for momentum model, this can take some time.')
+        print('running gridsearch for momentum model, THIS CAN TAKE SOME TIME')
         params = Structure_Model_Gridsearch_Parameters.ripple_momentum_params()
         gs_results = []
         adjust_params = False
@@ -53,7 +53,7 @@ def run_gridsearch(
     data_file_ = re.split('(spikemat_)', data_file) 
     filename = os.path.join(
         RESULTS_PATH,
-        f"{data_file_[0]}gridsearch_{model_name}_{data_file_[-1]}{filename_ext}.obj",
+        f"{data_file_[0]}gridsearch_{model_name}_{data_file_[-1]}",
     )
     save_data(gs_results, filename)
 
@@ -66,26 +66,28 @@ def run_gridsearch(
     ),
     required=True,
 )
-@click.option("--structure_data_file", required=True)
+@click.option("--data_file", required=True)
 @click.option("--filename_ext", type=click.STRING, default="")
 def main(
     model_name: str,
-    structure_data_file: str,
+    data_file: str,
     filename_ext: str,
 ):
     model = string_to_model(model_name)
     filename = os.path.join(
-    DATA_PATH, 'structure_analysis_input', structure_data_file)
+    DATA_PATH,
+    'structure_analysis_input',
+    data_file)
     structure_data = load_data(filename, False)
 
     print(
-            f"running {model.name} model on {structure_data_file} data, "
+            f"running {model.name} model on {data_file} data, "
         )
     run_gridsearch(
         model,
         structure_data,
         model_name,
-        structure_data_file,
+        data_file,
         filename_ext,
     )
 
