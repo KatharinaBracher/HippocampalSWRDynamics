@@ -1,0 +1,91 @@
+#  Hippocampal SWR Dynamics in 1D
+Forked from https://github.com/DrugowitschLab/HippocampalSWRDynamics and adapted to 1D data. 
+Can use unclusterd decoding https://bitbucket.org/kloostermannerflab/py-compressed-kde/src/master/, https://bitbucket.org/kloostermannerflab/fklab-python-core/src/master/
+
+## Installation via Ubuntu 22
+
+1. get repositories
+`git clone https://github.com/KatharinaBracher/HippocampalSWRDynamics`
+`git clone https://github.com/KatharinaBracher/py-compressed-kde`
+`git clone https://github.com/KatharinaBracher/fklab-python-core`
+
+2. Install dependencies for py-compressed-kde fklab-python-core (Ubunut 22)
+`bash`
+`sudo apt-get install libblas-dev liblapack-dev`
+`sudo apt-get install python3-pip`
+`sudo apt install libhdf5-103 libhdf5-cpp-103 libhdf5-dev libyaml-cpp-dev libyaml-cpp0.7 flatbuffers-compiler libflatbuffers-dev libflatbuffers1 pybind11-dev python3-pybind11 python3-pip`
+
+3. Create virtual environment
+python3 -m venv venv-project
+
+4. Activate environemnt 
+. venv-project/bin/activate
+
+5. Install project dependencies
+pip install poetry mat73 scikit-learn
+
+6. Install poetry dependencies
+cd HippocampalSWRDynamics
+poetry install
+
+## Run Code
+
+### Preprocessing 
+1. Adapt input data structure (.mat file):
+    - should look like dict_keys(['SpikeTimes', 'pos', 'RippleTimes'])
+2. Adjust folder names in metadata.py (i.e. DATA_PATH, RESULTS_PATH)
+3. Add folder to save preprocessed, reformatted data in DATA_PATH
+    - DATA_PATH/structure_analysis_input
+4. if not yet active activate environment 
+    - `. venv-project/bin/activate`
+    - change directory to script folder
+5. Run preprocessing scripts 
+    - to get help on any script use python <scriptname>.py --help
+    - prerocessing.py loads and reformats the data, neural data is preprocessed, running_direction can be set to True
+    `python preprocessing.py --data_file=data.obj --bin_size_cm=5 --time_window_ms=15`
+    - prerocessing_run.py reformats and preprocessed run snippets, run periods and trial in its full length
+    `python preprocessing_run.py --bin_size_cm=5 --time_window_ms=15`
+*Alternatively* to 5. use step_by_step_preprocessing.ipynb
+
+### Dynamics model analysis
+1. Adapt constants
+    - Calculate PF_SCALING_FACTOR in NB1_get_constants.ipynb
+    - adjust PF_SCALING_FACTOR in config.py
+2. run model analysis and grid search 
+    - run_models.py for random and stationary model for one of the strucutre analysis inputs (i.e. ripples, run snippets, run periods)
+    `python run_models.py --model_name=random --data_file=ripple_spikemat_5cm_15ms_poisson.obj`
+    - remaining models require a grid search
+    - adapt parameter ranges in config.py Structure_Model_Gridsearch_Parameters class
+    - run grid_search.py for diffusion, stationary_gaussian and momentum model for one of the strucutre analysis inputs (i.e. ripples, run snippets, run periods)
+    `python gridsearch.py --model_name=diffusion --data_file=ripple_spikemat_5cm_15ms_poisson.obj`
+    - explore grid search parameters distribution in NB3_gridsearch_parameres.ipynb and adapt if necessary
+    - run model_comparison.py
+    `python model_comparison --structure_data_file=ripple_spikemat_5cm_15ms_poisson.obj`
+*Alternatively* to 2. use step_by_step_DynamicsModel.ipynb
+3. Explore results and adapt constants
+    - calculate MAX_LIKELIHOOD_SD_METERS_RIPPLES in NB1
+    - explore model comparison in NB2
+    - plot model comparison and emission probabilities in NB2
+
+
+
+ToDo
+4. Trajectory decoding
+    - script for trajectory decoding for all ripples
+    - calculate contributions of direction (diff/sum) with range (cm to bins)
+    - plot trajectory decoding in NB4
+
+parallelize momentum gridsearch
+
+circular track transition matrix, input circular data or new script
+
+unclustered -> train decoder, get likelihood
+y-maze:
+- transition matrix?
+- reshape ep for plotting, 
+
+
+
+
+
+
