@@ -13,8 +13,8 @@ from typing import Union, NamedTuple, Optional, List, Tuple
 # DEFINE PATHS FOR LOADING/SAVING DATA
 
 
-DATA_PATH = "/home/masha/Documents/Studium/MIT/project/data_test"
-RESULTS_PATH = "/home/masha/Documents/Studium/MIT/project/1D/results_test"
+DATA_PATH = "/home/masha/Documents/Studium/MIT/project/data_test_rd"
+RESULTS_PATH = "/home/masha/Documents/Studium/MIT/project/1D/results_test_rd"
 FIGURES_PATH = "/home/masha/Documents/Studium/MIT/project/1D/figures"
 PLOTTING_FOLDER = (
     "/home/masha/Documents/Studium/MIT/project/1D/figures"

@@ -44,7 +44,7 @@ def run_preprocessing(
     # reformat data for structure analysis
     print("Reformatting data")
     structure_analysis_input = Structure_Analysis_Input.reformat_ripple_data(
-            spikemat_data, Poisson(), running_direction=False)
+            spikemat_data, Poisson(), running_direction=running_direction)
     folder = "structure_analysis_input"
     likelihood_function = "poisson"
     filename = os.path.join(

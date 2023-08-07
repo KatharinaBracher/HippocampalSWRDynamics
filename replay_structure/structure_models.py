@@ -245,7 +245,6 @@ class Momentum(Structure_Model):
         
     def _calc_model_evidence(self, spikemat_ind: int):
         # calculating emission probabilities over time p(x_t|z_t)
-        ######## self.structure_data.running_direction=False
         self.emission_probabilities=None
 
         self.forward_backward_input[
@@ -390,7 +389,6 @@ class Stationary_Gaussian(Structure_Model):
 
     def _calc_model_evidence(self, spikemat_ind: int):
         # calculating emission probabilities over time p(x_t|z_t)
-        ######## self.structure_data.running_direction=False
         emission_probabilities = self._calc_emission_probabilities(spikemat_ind)
         # calculating model evidence p(x_1:T|M, params)
         sum_z = np.matmul(

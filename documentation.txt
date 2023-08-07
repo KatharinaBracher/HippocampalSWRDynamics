@@ -42,7 +42,7 @@ poetry install
 5. Run preprocessing scripts 
     - to get help on any script use python <scriptname>.py --help
     - prerocessing.py loads and reformats the data, neural data is preprocessed, running_direction can be set to True
-    `python preprocessing.py --data_file=data.obj --bin_size_cm=5 --time_window_ms=15`
+    `python preprocessing.py --data_file=data.obj --bin_size_cm=5 --time_window_ms=15 --running_direction=True`
     - prerocessing_run.py reformats and preprocessed run snippets, run periods and trial in its full length
     `python preprocessing_run.py --bin_size_cm=5 --time_window_ms=15`
 *Alternatively* to 5. use step_by_step_preprocessing.ipynb
@@ -67,19 +67,23 @@ poetry install
     - explore model comparison in NB2
     - plot model comparison and emission probabilities in NB2
 
+### Trajectory decoding
+1. calculate trajectories
+    - in NB4_TrajectroyDecoding.ipynb for all replay classified ripples
+
 
 
 ToDo
 4. Trajectory decoding
-    - script for trajectory decoding for all ripples
     - calculate contributions of direction (diff/sum) with range (cm to bins)
     - plot trajectory decoding in NB4
 
-parallelize momentum gridsearch
+- parallelize momentum gridsearch
+- circular track transition matrix, input circular data or new script
 
-circular track transition matrix, input circular data or new script
-
-unclustered -> train decoder, get likelihood
+unclustered
+- train decoder script 
+- get likelihood
 y-maze:
 - transition matrix?
 - reshape ep for plotting, 

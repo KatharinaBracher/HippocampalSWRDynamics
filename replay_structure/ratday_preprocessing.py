@@ -26,6 +26,7 @@ class RatDay_Preprocessing:
         self.data = self.clean_recording_data(self.raw_data)
         print("Calculating run periods")
         if running_direction:
+            self.velocity_info = self.calculate_velocity_info()
             self.velocity_info_pos = self.calculate_velocity_info(rd='+')
             print("Calculating positive place fields")
             np.random.seed(0)
