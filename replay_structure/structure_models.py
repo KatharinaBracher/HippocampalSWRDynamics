@@ -97,9 +97,6 @@ class Structure_Model:
 
     def _calc_emission_probabilities_log(self, spikemat_ind: int) -> np.ndarray:
 
-        ########(pfpos, pfneg) = (self.structure_data.pf_matrix[:,:self.structure_data.params.n_bins_x],
-        ########                self.structure_data.pf_matrix[:,self.structure_data.params.n_bins_x:])
-        ######## pf = (pfpos+pfneg)/2
         if isinstance(
             self.structure_data.params.likelihood_function_params, Neg_Binomial_Params
         ):
@@ -124,9 +121,6 @@ class Structure_Model:
 
     def _calc_emission_probability_log(self, spikemat_ind: int) -> np.ndarray:
 
-        ########(pfpos, pfneg) = (self.structure_data.pf_matrix[:,:self.structure_data.params.n_bins_x],
-        ########                self.structure_data.pf_matrix[:,self.structure_data.params.n_bins_x:])
-        ########pf = (pfpos+pfneg)/2
         if isinstance(
             self.structure_data.params.likelihood_function_params, Neg_Binomial_Params
         ):
@@ -160,7 +154,6 @@ class Diffusion(Structure_Model):
         self.forward_backward_input = self._initialize_forward_backward_input()
 
     def _calc_model_evidence(self, spikemat_ind: int):
-        ######## self.structure_data.running_direction=False
         # calculating emission probabilities over time p(x_t|z_t)
         self.forward_backward_input[
             "emission_probabilities"
@@ -440,12 +433,6 @@ class Random(Structure_Model):
         emission_probabilities_log = self._calc_emission_probabilities_log(spikemat_ind)
         # calculating marginals p(z_t|x_1:T, M)
         marginals = np.exp(emission_probabilities_log)
-
-        # _marginalize over running direction to get evidence
-        '''if self.structure_data.running_direction:
-            emission_probabilities_log = emission_probabilities_log[
-                :self.structure_data.params.n_bins_x,:] + emission_probabilities_log[
-                    self.structure_data.params.n_bins_x:,:]'''
         
         # calculating model evidence p(x_1:T|M)
         norm_bins = emission_probabilities_log.shape[0]

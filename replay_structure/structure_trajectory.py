@@ -66,12 +66,15 @@ class Most_Likely_Trajectories:
         self, structure_data: Structure_Analysis_Input, spikemat_ind: int
     ) -> np.ndarray:
         if structure_data.spikemats[spikemat_ind] is not None:
-            self.viterbi_input[
-                "emission_probabilities"
-            ] = self._calc_emission_probabilities(structure_data, spikemat_ind)
+            emission_probabilities = self._calc_emission_probabilities(structure_data, spikemat_ind)
             self.viterbi_input["transition_matrix"] = self._calc_transition_matrix(
                 self.sd_bins
             )
+            if structure_data.running_direction:
+                pos = emission_probabilities[:structure_data.params.n_bins_x,:]
+                neg = emission_probabilities[structure_data.params.n_bins_x:,:]
+                emission_probabilities = pos + neg
+            self.viterbi_input["emission_probabilities"] = emission_probabilities
             viterbi_outputs = Viterbi(self.viterbi_input).run_viterbi_algorithm()
             most_likely_trajectory = viterbi_outputs["z_max"]
         else:
